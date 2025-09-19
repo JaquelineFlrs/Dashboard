@@ -1,72 +1,111 @@
 (function(){
 'use strict';
 const CM = window._commons;
-// dashboard.js — header, KPIs y tablas del dashboard
 
-
+// --- Header (sprint activo o vigente por fechas) ---
 async function loadSprintHeader(){
-  const { data, error } = await window.db.from(CM.TABLES.SPRINTS).select('nombre, fecha_inicio, fecha_fin').eq('activo',true).limit(1).maybeSingle();
-  if(error){ console.error(error); return; }
-  if(!data){ return; }
-  document.getElementById('sprintTitle').textContent = data.nombre || 'Sprint activo';
-  document.getElementById('sprintDates').textContent = `${fmtDate(data.fecha_inicio)} → ${fmtDate(data.fecha_fin)}`;
+  // intenta activo true/1
+  let { data, error } = await window.db
+    .from(CM.TABLES.SPRINTS)
+    .select('nombre, fecha_inicio, fecha_fin')
+    .or('activo.eq.true,activo.eq.1')
+    .limit(1)
+    .maybeSingle();
+
+  // fallback: sprint vigente hoy
+  if (error || !data) {
+    const today = new Date().toISOString().slice(0,10);
+    const q = await window.db
+      .from(CM.TABLES.SPRINTS)
+      .select('nombre, fecha_inicio, fecha_fin')
+      .lte('fecha_inicio', today)
+      .gte('fecha_fin', today)
+      .order('fecha_inicio', { ascending:false })
+      .limit(1)
+      .maybeSingle();
+    data = q.data; error = q.error;
+  }
+
+  if (error || !data) return;
+
+  const titleEl = document.getElementById('sprintTitle');
+  const datesEl = document.getElementById('sprintDates');
+  const chipEl  = document.getElementById('chipDias');
+  const daysEl  = document.getElementById('daysLeft');
+
+  titleEl.textContent = data.nombre || 'Sprint activo';
+  datesEl.textContent = `${CM.fmtDate(data.fecha_inicio)} → ${CM.fmtDate(data.fecha_fin)}`;
+
   const today = new Date(); today.setHours(0,0,0,0);
-  const end = new Date(data.fecha_fin+'T00:00:00');
-  const diff = Math.ceil((end - today)/(1000*60*60*24));
-  document.getElementById('chipDias').innerHTML = `Días restantes: <b>${diff}</b>`;
-  const dv=document.getElementById('daysLeft'); if(dv) dv.textContent = String(diff);
+  const end = new Date((data.fecha_fin || '') + 'T00:00:00');
+  const diff = Math.max(0, Math.ceil((end - today) / (1000*60*60*24)));
+  if (chipEl) chipEl.innerHTML = `Días restantes: <b>${diff}</b>`;
+  if (daysEl) daysEl.textContent = String(diff);
 }
 
+// --- KPIs ---
 async function loadKpis(){
   const KPI_SOURCES = {
-    pctSprint:      { view: 'vw_totales_sprint', column: 'pct_avance' },
-    horasSubtarea:  { view: 'vw_totales_sprint', column: 'total_x_sub' },
-    totalPendientes:{ view: 'vw_totales_sprint', column: 'total_pendientes' },
-    horasTerminadas:{ view: 'vw_totales_sprint', column: 'total_terminadas' },
+    pctSprint:       { view: 'vw_totales_sprint', column: 'pct_avance' },
+    horasSubtarea:   { view: 'vw_totales_sprint', column: 'total_x_sub' },
+    totalPendientes: { view: 'vw_totales_sprint', column: 'total_pendientes' },
+    horasTerminadas: { view: 'vw_totales_sprint', column: 'total_terminadas' }
   };
-  const { data, error } = await window.db.from(KPI_SOURCES.pctSprint.view).select('*').limit(1).maybeSingle();
-  if(error){ console.error(error); return; }
-  if(!data) return;
-  const pct = Number(data[KPI_SOURCES.pctSprint.column] ?? 0);
-  const hrsSub = Number(data[KPI_SOURCES.horasSubtarea.column] ?? 0);
-  const totPen = Number(data[KPI_SOURCES.totalPendientes.column] ?? 0);
-  const hrsTer = Number(data[KPI_SOURCES.horasTerminadas.column] ?? 0);
-  document.getElementById('kpiPctSprint').textContent = (isFinite(pct)? pct.toFixed(1):0) + '%';
-  document.getElementById('kpiHorasSubtarea').textContent = isFinite(hrsSub)? hrsSub.toLocaleString('es-MX'): '—';
-  document.getElementById('kpiTotalPendientes').textContent = isFinite(totPen)? totPen.toLocaleString('es-MX'): '—';
-  document.getElementById('kpiHorasTerminadas').textContent = isFinite(hrsTer)? hrsTer.toLocaleString('es-MX'): '—';
-} = await window.db.from(CM.VIEWS.TOTALES_SPRINT).select('*').limit(1).maybeSingle();
-  if(error){ console.error(error); return; }
-  if(!data) return;
-  document.getElementById('kpiAvance').textContent = fmtPct(data.avance_pct ?? data.pct_avance ?? 0);
-  document.getElementById('kpiHorasTotales').textContent = fmtNum(data.horas_totales ?? data.total_hrs ?? 0);
-  document.getElementById('kpiHorasCerradas').textContent = fmtNum(data.horas_cerradas ?? 0);
-  document.getElementById('kpiHorasAbiertas').textContent = fmtNum(data.horas_abiertas ?? 0);
-  document.getElementById('kpiSubCerradas').textContent = fmtNum(data.subtareas_cerradas ?? 0);
-  document.getElementById('kpiSubAbiertas').textContent = fmtNum(data.subtareas_abiertas ?? 0);
+  const { data, error } = await window.db
+    .from(KPI_SOURCES.pctSprint.view)
+    .select('*')
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return;
+
+  const pct   = Number(data[KPI_SOURCES.pctSprint.column] ?? 0);
+  const hrsS  = Number(data[KPI_SOURCES.horasSubtarea.column] ?? 0);
+  const pend  = Number(data[KPI_SOURCES.totalPendientes.column] ?? 0);
+  const hrsT  = Number(data[KPI_SOURCES.horasTerminadas.column] ?? 0);
+
+  const pctEl  = document.getElementById('kpiPctSprint');
+  const hrsSEl = document.getElementById('kpiHorasSubtarea');
+  const pendEl = document.getElementById('kpiTotalPendientes');
+  const hrsTEl = document.getElementById('kpiHorasTerminadas');
+
+  if (pctEl)  pctEl.textContent  = (isFinite(pct) ? pct.toFixed(1) : '0') + '%';
+  if (hrsSEl) hrsSEl.textContent = isFinite(hrsS) ? hrsS.toLocaleString('es-MX') : '—';
+  if (pendEl) pendEl.textContent = isFinite(pend) ? pend.toLocaleString('es-MX') : '—';
+  if (hrsTEl) hrsTEl.textContent = isFinite(hrsT) ? hrsT.toLocaleString('es-MX') : '—';
 }
 
+// --- Tablas ---
 async function loadTabla(view, theadId, tbodyId){
   const { data, error } = await window.db.from(view).select('*');
-  if(error){ console.error(view, error); return; }
-  renderTable(document.getElementById(theadId), document.getElementById(tbodyId), data);
+  if (error) { console.error(view, error); return; }
+  const thead = document.getElementById(theadId);
+  const tbody = document.getElementById(tbodyId);
+  window.renderTable ? window.renderTable(thead, tbody, data) : (function(){
+    // fallback render if helper not found
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+    if (!data || !data.length){ thead.innerHTML = '<tr><th>Sin datos</th></tr>'; return; }
+    const cols = Object.keys(data[0]);
+    thead.innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+    tbody.innerHTML = data.map(r=>'<tr>'+cols.map(c=>`<td>${(r[c]??'')}</td>`).join('')+'</tr>').join('');
+  })();
 }
 
+// --- Refresh all ---
 async function refreshDashboard(){
-  try{
-    showLoading(true);
+  try {
+    CM.showLoading(true);
     await loadSprintHeader();
     await loadKpis();
     await loadTabla(CM.VIEWS.AVANCE_LISTA, 'theadLista', 'tbodyLista');
     await loadTabla(CM.VIEWS.TOTALES_PROP, 'theadProp', 'tbodyProp');
   } finally {
-    showLoading(false);
+    CM.showLoading(false);
   }
 }
 
 document.getElementById('btnRefreshDashboard').addEventListener('click', refreshDashboard);
-refreshDashboard();
-// hook
 window._hooks['view-dashboard'] = refreshDashboard;
+refreshDashboard();
 
 })();
