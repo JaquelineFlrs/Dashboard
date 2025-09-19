@@ -27,7 +27,7 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-se
   background:#fff;border-radius:12px;cursor:pointer}
 .menu-item.active,.menu-item:hover{border-color:var(--accent);box-shadow:0 6px 16px rgba(238,95,160,.15)}
 
-.content{padding:16px;max-width:1200px;margin:0 auto}
+.content{padding: 0 24px;max-width: 1440px;margin:0 auto}
 .view{display:none}
 .view.active{display:block}
 
@@ -216,3 +216,82 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
 }
 /* Paginação/summary */
 .table-footer, .pager, .small-bold{ color: var(--text-2); }
+
+/* === Ajustes finales según feedback === */
+
+/* Layout más ancho (menos márgenes a los lados) */
+.wrap, .content { 
+  max-width: 1440px; 
+  padding: 0 24px; 
+}
+
+/* Header blanco limpio */
+#view-dashboard #header.card{
+  background: #fff;
+  border: none;
+  box-shadow: none;
+  color: var(--text);
+  padding: 24px 0;
+}
+#sprintTitle{ font-size: 64px; font-weight: 800; color: var(--accent); margin:0; }
+#sprintDates{ font-size: 16px; color: var(--text-2); }
+
+/* KPIs cards rosa con texto blanco */
+.kpis { grid-template-columns: repeat(4,1fr); gap: 24px; margin: 24px 0; }
+.kpi {
+  background: var(--accent);
+  border-radius: 14px;
+  color: #fff;
+  padding: 28px 20px;
+  text-align: center;
+}
+.kpi-label {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color:#fff;
+}
+.kpi-value {
+  font-size: 48px;
+  font-weight: 900;
+  color:#fff;
+}
+
+/* Tablas sin card, solo tabla con encabezado rosa */
+.tbl-wrap { 
+  background: none; 
+  box-shadow: none; 
+  border: none; 
+  padding: 0; 
+  margin-top: 24px;
+}
+.tbl-wrap table{ width:100%; border-collapse:separate; border-spacing:0; }
+.tbl-wrap thead th {
+  background: var(--accent);
+  color:#fff;
+  font-weight:700;
+  font-size:14px;
+  border-bottom:0;
+}
+.tbl-wrap tbody td, .tbl-wrap thead th {
+  border-bottom:1px solid rgba(238,95,160,.25);
+}
+.tbl-wrap tbody tr:nth-child(even){ background:#fff7fb; }
+
+/* --- Flatten tables on dashboard --- */
+#view-dashboard .table-block {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 12px 0 0 0 !important;
+}
+/* Optional wrapper spacing for tables */
+#view-dashboard .table-block .tbl-wrap { margin-top: 8px; }
+
+/* Wider table titles and cleaner look */
+#view-dashboard .table-block h3 { 
+  margin: 0 0 10px 0; 
+  font-weight: 800;
+  color: var(--text);
+}
