@@ -1,149 +1,138 @@
 (function(){
 'use strict';
-const CM = window._commons;
-// admin.js — crear sprint y cargas CSV
+const CM = window._commons || {};
+const $id = (id)=> document.getElementById(id);
 
-const $a = (id)=> document.getElementById(id);
-
+// === Guardar sprint ===
 async function guardarSprint(ev){
   ev.preventDefault();
-  const nombre = $a('spNombre').value.trim();
-  const inicio = $a('spInicio').value;
-  const fin = $a('spFin').value;
-  const totalHrs = parseFloat($a('spTotalHrs').value||'0');
+  const nombre   = $id('spNombre').value.trim();
+  const inicio   = $id('spInicio').value;
+  const fin      = $id('spFin').value;
+  const totalHrs = parseFloat($id('spTotalHrs').value||'0');
+
   if(!nombre || !inicio || !fin || !Number.isFinite(totalHrs)){
-    alert('Completa todos los campos.');
+    alert('Completa todos los campos del sprint.');
     return;
   }
-  if(!confirm(`Vas a BORRAR SUBTAREAS, HISTORIAS y SPRINTS, y crear el sprint "${nombre}". ¿Seguro/a?`)){
-    return;
-  }
-  CM.showLoading(true);
+
+  if(!confirm('¡ATENCIÓN! Esto borrará SUBTAREAS, HISTORIAS y SPRINTS.\n¿Deseas continuar?')) return;
+
   try{
-    await window.db.from(CM.TABLES.SUBTAREAS).delete().neq('id', -1);
-    await window.db.from(CM.TABLES.HISTORIAS).delete().neq('id', -1);
-    await window.db.from(CM.TABLES.SPRINTS).delete().neq('id', -1);
+    CM.showLoading?.(true);
 
-    const payload = { nombre, fecha_inicio: inicio, fecha_fin: fin, activo: true, total_hrs: totalHrs };
-    const { error:insErr } = await window.db.from(CM.TABLES.SPRINTS).insert(payload);
-    if(insErr){ throw insErr; }
+    // Borra datos existentes
+    await window.db.from('SUBTAREAS').delete().neq('id', -1);
+    await window.db.from('HISTORIAS').delete().neq('id', -1);
+    await window.db.from('sprints').delete().neq('id', -1);
 
-    alert('Sprint guardado. Ahora puedes cargar CSV y sincronizar.');
+    // Inserta sprint nuevo
+    const { error } = await window.db.from('sprints').insert([{
+      nombre,
+      fecha_inicio: inicio,
+      fecha_fin: fin,
+      total_horas: totalHrs
+    }]);
+    if(error) throw error;
+
+    alert('Sprint guardado.');
   }catch(e){
     console.error(e);
-    alert('No se pudo guardar el sprint: '+(e?.message||e));
+    alert('No se pudo guardar el sprint: '+(e.message||e));
   }finally{
-    CM.showLoading(false);
+    CM.showLoading?.(false);
   }
 }
 
-async async function cargarCsvYSync(){
-  const fSub = $a('csvSubtareas').files[0];
-  const fHis = $a('csvHistorias').files[0];
-  if(!fSub && !fHis){
-    alert('Selecciona al menos un CSV (Subtareas o Historias).');
-    return;
-  }
-  CM.showLoading(true);
-  $a('uploadMsg').textContent = 'Procesando CSV…';
-  (async()=>{
-    try{
-      const parseCsv = (file)=> new Promise((resolve,reject)=>{
-        Papa.parse(file,{header:true,skipEmptyLines:true,complete:(res)=>resolve(res.data),error:reject});
-      });
-
-      let rowsSub = [];
-      let rowsHis = [];
-      if (fSub) rowsSub = await parseCsv(fSub);
-      if (fHis) rowsHis = await parseCsv(fHis);
-
-      const upsertBatched = async (table, rows)=>{
-        for(let i=0;i<rows.length;i+=500){
-          const slice = rows.slice(i,i+500).map(r=>{
-            const obj = {};
-            for (const k in r){ obj[k?.trim?.() ?? k] = (r[k] ?? '').toString().trim(); }
-            return obj;
-          });
-          const { error } = await window.db.from(table).upsert(slice, { onConflict: '"ID de Tarea"' });
-          if (error) throw error;
-        }
-      };
-
-      // Validación para SUBTAREASACTUAL: exigir ID de Tarea
-      let subOk = 0, subDrop = 0;
-      if (rowsSub.length){
-        const hasIdCol = Object.keys(rowsSub[0]||{}).some(k=>k.trim() === 'ID de Tarea');
-        if(!hasIdCol){
-          throw new Error('El CSV de Subtareas no contiene la columna "ID de Tarea".');
-        }
-        const filtered = rowsSub.filter(r=> (r['ID de Tarea'] ?? '').toString().trim() !== '');
-        subOk = filtered.length; subDrop = rowsSub.length - subOk;
-        await upsertBatched(CM.TABLES.SUBTAREASACTUAL, filtered);
-      }
-
-      // Historias: no forzamos ID, se puede cargar sola
-      if (rowsHis.length){
-        await upsertBatched(CM.TABLES.HISTORIASACTUAL, rowsHis);
-      }
-
-      if (rowsSub.length || rowsHis.length){
-        const { error:rpcErr } = await window.db.rpc(CM.FN_SYNC_NAME);
-        if (rpcErr) throw rpcErr;
-      }
-
-      const parts = [];
-      if (rowsSub.length) parts.push(`${subOk} subtareas (omitidas: ${subDrop})`);
-      if (rowsHis.length) parts.push(`${rowsHis.length} historias`);
-      $a('uploadMsg').textContent = 'Listo: ' + (parts.join(' + ') || 'sin cambios');
-      alert('Carga y sincronización completadas.');
-    }catch(e){
-      console.error(e);
-      alert('Error durante la carga/sync: '+(e?.message||e));
-      $a('uploadMsg').textContent = 'Ocurrió un error.';
-    }finally{
-      CM.showLoading(false);
-    }
-  })();
-}
-
-  CM.showLoading(true);
-  $a('uploadMsg').textContent = 'Procesando CSV…';
-  try{
-    const parseCsv = (file)=> new Promise((resolve,reject)=>{
-      Papa.parse(file,{header:true,skipEmptyLines:true,complete:(res)=>resolve(res.data),error:reject});
+// === Helpers para CSV ===
+function parseCsvFile(file){
+  return new Promise((resolve, reject)=>{
+    if(!file) return resolve([]);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res)=> resolve(res.data),
+      error: reject
     });
-    const [rowsSub, rowsHis] = await Promise.all([parseCsv(fSub), parseCsv(fHis)]);
-
-    const upsertBatched = async (table, rows)=>{
-      for(let i=0;i<rows.length;i+=500){
-        const slice = rows.slice(i,i+500).map(r=>{
-          const o={}; for(const k in r){ o[k] = (r[k]===''? null : r[k]); } return o;
-        });
-        const { error } = await window.db.from(table).upsert(slice);
-        if(error) throw error;
-      }
-    };
-
-    await upsertBatched(CM.TABLES.SUBTAREASACTUAL, rowsSub);
-    await upsertBatched(CM.TABLES.HISTORIASACTUAL, rowsHis);
-
-    const { error:rpcErr } = await window.db.rpc(CM.FN_SYNC_NAME);
-    if(rpcErr) throw rpcErr;
-
-    $a('uploadMsg').textContent = `Listo: ${rowsSub.length} subtareas + ${rowsHis.length} historias. Datos sincronizados.`;
-    alert('Carga y sincronización completadas.');
-  }catch(e){
-    console.error(e);
-    alert('Error durante la carga/sync: '+(e?.message||e));
-    $a('uploadMsg').textContent = 'Ocurrió un error.';
-  }finally{
-    CM.showLoading(false);
-  }
+  });
+}
+function normalizeRows(rows){
+  return rows.map(r=>{
+    const out = {};
+    for(const k in r){
+      const v = r[k];
+      if(v === '') out[k] = null;
+      else if(typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)) out[k] = Number(v);
+      else out[k] = v;
+    }
+    return out;
+  });
 }
 
-document.getElementById('frmSprint').addEventListener('submit', guardarSprint);
-document.getElementById('btnCargarTodo').addEventListener('click', cargarCsvYSync);
-// hook vacío por si luego quieres algo al entrar a admin
+// === Cargar CSVs ===
+async function cargarSubtareas(){
+  const file = $id('csvSubtareas').files[0];
+  if(!file){ alert('Selecciona un CSV de Subtareas.'); return; }
+  try{
+    CM.showLoading?.(true);
+    const rows = normalizeRows(await parseCsvFile(file));
+    await window.db.from('SUBTAREASACTUAL').delete().neq('x','y');
+    const { error } = await window.db.from('SUBTAREASACTUAL').insert(rows);
+    if(error) throw error;
+    $id('uploadMsg').textContent = `Subtareas cargadas: ${rows.length}`;
+  }catch(e){
+    console.error(e);
+    alert('Error cargando Subtareas: '+(e.message||e));
+  }finally{ CM.showLoading?.(false); }
+}
+
+async function cargarHistorias(){
+  const file = $id('csvHistorias').files[0];
+  if(!file){ alert('Selecciona un CSV de Historias.'); return; }
+  try{
+    CM.showLoading?.(true);
+    const rows = normalizeRows(await parseCsvFile(file));
+    await window.db.from('HISTORIASACTUAL').delete().neq('x','y');
+    const { error } = await window.db.from('HISTORIASACTUAL').insert(rows);
+    if(error) throw error;
+    $id('uploadMsg').textContent = `Historias cargadas: ${rows.length}`;
+  }catch(e){
+    console.error(e);
+    alert('Error cargando Historias: '+(e.message||e));
+  }finally{ CM.showLoading?.(false); }
+}
+
+async function sincronizar(){
+  try{
+    CM.showLoading?.(true);
+    if(window.db.rpc){
+      const { error } = await window.db.rpc('fn_sync_simple');
+      if(error) throw error;
+      alert('Sincronización ejecutada.');
+    }else{
+      alert('Sincronización omitida (no hay RPC disponible).');
+    }
+  }catch(e){
+    console.warn(e);
+    alert('No se pudo sincronizar: '+(e.message||e));
+  }finally{ CM.showLoading?.(false); }
+}
+
+async function cargarAmbosYSync(){
+  if($id('csvSubtareas').files[0]) await cargarSubtareas();
+  if($id('csvHistorias').files[0]) await cargarHistorias();
+  await sincronizar();
+}
+
+// === Eventos ===
+$id('frmSprint').addEventListener('submit', guardarSprint);
+$id('btnCargarSubtareas').addEventListener('click', cargarSubtareas);
+$id('btnCargarHistorias').addEventListener('click', cargarHistorias);
+$id('btnSincronizar').addEventListener('click', sincronizar);
+$id('btnCargarTodo').addEventListener('click', cargarAmbosYSync);
+
+// Hook al entrar
+window._hooks = window._hooks || {};
 window._hooks['view-admin'] = ()=>{};
 
 })();
