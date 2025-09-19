@@ -36,19 +36,27 @@ async function loadSubtareas(){
 }
 
 function getFiltered(){
-  const q = ($sub('subSearch').value||'').toLowerCase().trim();
-  const onlyShown = $sub('subOnlyShown').checked;
-  return subtareasRaw.filter(r=>{
-    const txt = [r[subKeys.nombre], r[subKeys.propietario], r[subKeys.id]].filter(Boolean).join(' ').toLowerCase();
-    const okQ = q ? txt.includes(q) : true;
-    const okShown = onlyShown ? normalizeBool(r[subKeys.mostrar]) : true;
-    return okQ && okShown;
-  });
+  try{
+    const q = (ui.q||'').toLowerCase().trim();
+    const onlyShown = !!ui.onlyShown;
+    const base = Array.isArray(subtareasRaw) ? subtareasRaw : [];
+    const res = base.filter(r=>{
+      const txt = [r[subKeys.nombre], r[subKeys.propietario], r[subKeys.id]]
+        .filter(Boolean).join(' ').toLowerCase();
+      const okQ = q ? txt.includes(q) : true;
+      const okShown = onlyShown ? normalizeBool(r[subKeys.mostrar]) : true;
+      return okQ && okShown;
+    });
+    return applySort(res || []);
+  }catch(e){
+    console.error('getFiltered failed', e);
+    return [];
+  }
 }
 
 function renderSubtareas(){
   const head = $sub('theadSubSel'), body = $sub('tbodySubSel');
-  const rows = getFiltered();
+  let rows; try{ rows = getFiltered() || []; }catch(e){ console.error(e); rows = []; }
   head.innerHTML = `<tr>
     <th class="chk">Terminada</th>
     <th class="chk">Mostrar</th>
@@ -57,18 +65,27 @@ function renderSubtareas(){
     ${subKeys.propietario? `<th>${subKeys.propietario}</th>`:''}
     ${subKeys.horas? `<th>${subKeys.horas}</th>`:''}
   </tr>`;
-  if(rows.length===0){ body.innerHTML = '<tr><td colspan="5">Sin datos</td></tr>'; return; }
+  if(rows.length===0){ body.innerHTML = '<tr><td colspan="6">Sin datos</td></tr>'; return; }
   body.innerHTML = rows.map(r=>{
     const checked = normalizeBool(r[subKeys.mostrar]) ? 'checked' : '';
     return `<tr data-id="${escapeHtml(r[subKeys.id])}">
-      <td><input type="checkbox" class="chkMostrar" ${checked}></td>
-      <td>${escapeHtml(r[subKeys.id])}</td>
+            <td class="chk"><input type="checkbox" class="chkTerminada" ${isTerminada(r)?'checked':''}></td>
+      <td class="chk"><input type="checkbox" class="chkMostrar" ${checked}></td>
+<td>${escapeHtml(r[subKeys.id])}</td>
       <td>${escapeHtml(r[subKeys.nombre])}</td>
       ${subKeys.propietario? `<td>${escapeHtml(r[subKeys.propietario])}</td>`:''}
       ${subKeys.horas? `<td>${escapeHtml(r[subKeys.horas])}</td>`:''}
     </tr>`;
   }).join('');
 
+  document.querySelectorAll('.chkTerminada').forEach(chk=>{
+    chk.addEventListener('change', async (ev)=>{
+      const tr = ev.target.closest('tr');
+      const id = tr?.getAttribute('data-id');
+      await updateTerminada(id, ev.target.checked);
+      renderSubtareas();
+    });
+  });
   document.querySelectorAll('.chkMostrar').forEach(chk=>{
     chk.addEventListener('change', async (ev)=>{
       const tr = ev.target.closest('tr');
