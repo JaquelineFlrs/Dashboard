@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>GM • Sprint Dashboard</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <!-- Libs globales -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Sprint Panel</div>
+      <nav class="menu">
+        <button class="menu-item active" data-view="view-dashboard">
+          <span>📊</span> Dashboard
+        </button>
+        <button class="menu-item" data-view="view-subtareas">
+          <span>✅</span> Lista de subtareas
+        </button>
+        <button class="menu-item" data-view="view-admin">
+          <span>🛠️</span> Administrador
+        </button>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="view active">
+        <section class="header card" id="header">
+          <div>
+            <h1 id="sprintTitle">Sprint actual</h1>
+            <div class="muted" id="sprintDates">–</div>
+            <div class="chip" id="chipDias">Días restantes: <b>—</b></div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="btnRefreshDashboard">Actualizar</button>
+          </div>
+        </section>
+
+        <section class="kpis">
+          <div class="kpi card">
+            <div class="kpi-label">Avance</div>
+            <div class="kpi-value" id="kpiAvance">—%</div>
+          </div>
+          <div class="kpi card">
+            <div class="kpi-label">Horas totales</div>
+            <div class="kpi-value" id="kpiHorasTotales">—</div>
+          </div>
+          <div class="kpi card">
+            <div class="kpi-label">Horas cerradas</div>
+            <div class="kpi-value" id="kpiHorasCerradas">—</div>
+          </div>
+          <div class="kpi card">
+            <div class="kpi-label">Horas abiertas</div>
+            <div class="kpi-value" id="kpiHorasAbiertas">—</div>
+          </div>
+          <div class="kpi card">
+            <div class="kpi-label">Subtareas cerradas</div>
+            <div class="kpi-value" id="kpiSubCerradas">—</div>
+          </div>
+          <div class="kpi card">
+            <div class="kpi-label">Subtareas abiertas</div>
+            <div class="kpi-value" id="kpiSubAbiertas">—</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Avance por lista (vw_avance_por_lista)</h3>
+          <div class="tbl-wrap">
+            <table id="tblLista">
+              <thead id="theadLista"></thead>
+              <tbody id="tbodyLista"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Totales por propietario (vw_totales_por_propietario)</h3>
+          <div class="tbl-wrap">
+            <table id="tblProp">
+              <thead id="theadProp"></thead>
+              <tbody id="tbodyProp"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- SUBTAREAS -->
+      <section id="view-subtareas" class="view">
+        <section class="card">
+          <h3>Subtareas — mostrar / no mostrar</h3>
+          <div class="tools">
+            <input type="search" id="subSearch" placeholder="Buscar subtarea / propietario…"/>
+            <label class="muted"><input type="checkbox" id="subOnlyShown"> Ver solo marcadas</label>
+            <div class="sp"></div>
+            <button class="btn" id="btnMarkAll">Marcar todo (filtrado)</button>
+            <button class="btn" id="btnUnmarkAll">Desmarcar todo (filtrado)</button>
+          </div>
+          <div class="tbl-wrap">
+            <table id="tblSubSel">
+              <thead id="theadSubSel"></thead>
+              <tbody id="tbodySubSel"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ADMIN -->
+      <section id="view-admin" class="view">
+        <section class="card">
+          <h3>Nuevo sprint</h3>
+          <form id="frmSprint" class="form-grid">
+            <label>Nombre
+              <input type="text" id="spNombre" required placeholder="Sprint X"/>
+            </label>
+            <label>Fecha inicio
+              <input type="date" id="spInicio" required/>
+            </label>
+            <label>Fecha fin
+              <input type="date" id="spFin" required/>
+            </label>
+            <label>Total de horas
+              <input type="number" id="spTotalHrs" min="0" step="0.5" required placeholder="Ej. 120"/>
+            </label>
+            <div class="row">
+              <label class="muted"><input type="checkbox" id="spExcluirFines"> Excluir sábados y domingos</label>
+              <label class="muted"><input type="checkbox" id="spExcluirFestivos" checked> Excluir festivos México</label>
+            </div>
+            <div class="row">
+              <button class="btn danger" id="btnGuardarSprint" type="submit">Guardar sprint (BORRA datos)</button>
+            </div>
+            <p class="muted small">Al guardar: se borran SUBTAREAS, HISTORIAS y SPRINTS, y se inserta este nuevo.</p>
+          </form>
+        </section>
+
+        <section class="card">
+          <h3>Cargas CSV</h3>
+          <div class="uploader">
+            <div>
+              <label class="small-bold">Subtareas → SUBTAREASACTUAL</label><br/>
+              <input type="file" id="csvSubtareas" accept=".csv"/>
+            </div>
+            <div>
+              <label class="small-bold">Historias → HISTORIASACTUAL</label><br/>
+              <input type="file" id="csvHistorias" accept=".csv"/>
+            </div>
+            <div class="row">
+              <button class="btn" id="btnCargarTodo">Cargar ambos y sincronizar</button>
+            </div>
+            <div id="uploadMsg" class="muted"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Burndown (ideal)</h3>
+          <canvas id="burndown" height="120"></canvas>
+          <div class="muted small">Construido con total de horas / días hábiles (fines y festivos opcionales).</div>
+        </section>
+      </section>
+
+      <div class="loading" id="loading" style="visibility:hidden">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div> Cargando…
+      </div>
+    </main>
+  </div>
+
+  <!-- App scripts -->
+  <script src="js/common.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/subtareas.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
