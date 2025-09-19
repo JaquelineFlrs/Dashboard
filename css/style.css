@@ -131,7 +131,7 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
   color:#374151 !important;
   padding:24px 0;
 }
-#view-dashboard #header #sprintTitle{color:#111827 !important;font-size:50px !important;font-weight:900 !important}
+#view-dashboard #header #sprintTitle{color:#3f403f!important;font-size:50px !important;font-weight:900 !important}
 #view-dashboard #header #sprintDates{color:#ee5fa0 !important;font-size:16px !important}
 #view-dashboard #header .days-card{color:#374151 !important}
-#view-dashboard #header .days-value{color:#111827 !important;font-size:44px !important;font-weight:800 !important}
+#view-dashboard #header .days-value{color:#3f403f!important;font-size:44px !important;font-weight:800 !important}
