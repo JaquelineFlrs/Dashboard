@@ -105,3 +105,18 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
 
 /* Tables header sticky for better UX */
 .tbl-wrap thead th{position:sticky;top:0;z-index:1}
+
+/* --- KPIs en una sola fila --- */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.kpi {
+  text-align: center;
+  padding: 12px;
+}
+@media(max-width: 800px){
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+}
