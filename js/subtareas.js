@@ -15,6 +15,10 @@ let subtareasRaw = [];
 let subKeys = {};
 
 const $sub = (id)=> document.getElementById(id);
+// UI state
+const SUB_UI_KEY = 'subtareas_ui_v1';
+let ui = { q:'', onlyShown:false, sort:{ key:null, dir:1 } };
+try{ ui = Object.assign(ui, JSON.parse(localStorage.getItem(SUB_UI_KEY)||'{}')); }catch{}
 
 function findKey(obj, list){ return list.find(k=> Object.prototype.hasOwnProperty.call(obj,k)); }
 function normalizeBool(v){ return (v===true || v==='true' || v===1 || v==='1'); }
