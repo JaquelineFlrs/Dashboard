@@ -156,7 +156,7 @@ function renderSubtareas(){
   body.innerHTML = rows.map(r=>{
     const checked = normalizeBool(r[subKeys.mostrar]) ? 'checked' : '';
     return `<tr data-id="${escapeHtml(r[subKeys.id])}">
-      <td><input type="checkbox" class="chkTerminada" ${isTerminada(r)?'checked':''} data-id="${r[subKeys.id]}"></td><td><input type="checkbox" class="chkMostrar" ${checked}></td>
+      <td><input type="checkbox" class="chkTerminada" ${isTerminada(r)?'checked':''} data-id="${r[subKeys.id]}"></td><td class="chk"><input type="checkbox" class="chkMostrar" ${checked}></td>
       <td>${escapeHtml(r[subKeys.id])}</td>
       <td>${escapeHtml(r[subKeys.nombre])}</td>
       ${subKeys.propietario? `<td>${escapeHtml(r[subKeys.propietario])}</td>`:''}

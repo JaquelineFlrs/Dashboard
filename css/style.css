@@ -141,3 +141,26 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
 th.sortable{cursor:pointer;user-select:none}
 th.sortable .arrow{font-size:.8em;opacity:.7;margin-left:6px}
 .tools{gap:8px}
+
+
+/* ---- Subtareas UI polish ---- */
+.tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tools .input{height:34px;padding:0 10px;border:1px solid var(--muted-2);border-radius:12px;background:#fff;outline:none}
+.tools .input:focus{box-shadow:0 0 0 3px rgba(238,95,160,.15)}
+.btn{padding:8px 12px;border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--muted-2);background:#fff}
+.btn.sm{padding:6px 10px;font-size:.875rem}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Table alignment */
+.tbl-subt{width:100%;table-layout:fixed;border-collapse:collapse}
+.tbl-subt th,.tbl-subt td{padding:10px 12px;vertical-align:middle}
+.tbl-subt thead th{position:sticky;top:0;background:var(--accent);color:#fff;z-index:1}
+.tbl-subt th.chk,.tbl-subt td.chk{width:44px;text-align:center}
+.tbl-subt th.id,.tbl-subt td.id{width:140px}
+.tbl-subt th.dur,.tbl-subt td.dur{width:96px;text-align:right}
+.tbl-subt tr:nth-child(even) td{background:rgba(238,95,160,.05)}
+.tbl-subt input[type="checkbox"]{width:16px;height:16px}
+
+/* Sortable */
+th.sortable{cursor:pointer;user-select:none}
+th.sortable .arrow{font-size:.8em;opacity:.7;margin-left:6px}
