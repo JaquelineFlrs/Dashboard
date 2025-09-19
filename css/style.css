@@ -181,7 +181,7 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   border: none;
   color: #fff;
 }
-#view-dashboard #header .days-label{ color:#fff; }
+#view-dashboard #header .days-label{ color:#ffe6f1; }
 #view-dashboard #header .days-value{ font-size: 44px; color:#fff; }
 
 /* KPIs: bloques rosa claro, grandes y minimal */
