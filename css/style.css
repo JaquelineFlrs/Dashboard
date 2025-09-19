@@ -75,3 +75,33 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   .form-grid{grid-template-columns:1fr}
   .kpis{grid-template-columns:1fr}
 }
+
+
+/* --- Refined top menu --- */
+.menu-h{display:flex;gap:12px;flex-wrap:wrap}
+.menu-item{
+  padding:10px 14px;border-radius:999px;border:1px solid var(--muted-2);
+  background:#fff;color:var(--text);font-weight:700;letter-spacing:.2px
+}
+.menu-item:hover{border-color:var(--accent);box-shadow:0 4px 14px rgba(238,95,160,.15)}
+.menu-item.active{background:var(--accent);color:#fff;border-color:transparent}
+
+/* --- Header redesign --- */
+.header{gap:16px}
+.days-card{
+  display:flex;align-items:center;gap:14px;background:var(--muted);
+  border:1px solid var(--muted-2);border-radius:14px;padding:10px 12px
+}
+.days-label{font-size:12px;color:var(--text-2);text-transform:uppercase}
+.days-value{font-size:28px;font-weight:800}
+.btn.ghost{background:#fff;border-color:var(--muted-2)}
+
+/* --- Side-by-side cards grid --- */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){ .grid-2{grid-template-columns:1fr} }
+
+/* Slightly larger KPI value */
+.kpi .kpi-value{font-size:32px}
+
+/* Tables header sticky for better UX */
+.tbl-wrap thead th{position:sticky;top:0;z-index:1}

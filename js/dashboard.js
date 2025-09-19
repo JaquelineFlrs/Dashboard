@@ -14,6 +14,7 @@ async function loadSprintHeader(){
   const end = new Date(data.fecha_fin+'T00:00:00');
   const diff = Math.ceil((end - today)/(1000*60*60*24));
   document.getElementById('chipDias').innerHTML = `Días restantes: <b>${diff}</b>`;
+  const dv=document.getElementById('daysLeft'); if(dv) dv.textContent = String(diff);
 }
 
 async function loadKpis(){

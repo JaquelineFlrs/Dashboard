@@ -15,10 +15,10 @@
   <header class="topnav">
     <div class="brand">Sprint Panel</div>
     <nav class="menu-h">
-      <button class="menu-item active" data-view="view-dashboard"><span>📊</span> Dashboard</button>
-      <button class="menu-item" data-view="view-subtareas"><span>✅</span> Subtareas</button>
-      <button class="menu-item" data-view="view-admin"><span>🛠️</span> Administrador</button>
-      <button class="menu-item" data-view="view-burndown"><span>📉</span> Burndown</button>
+      <button class="menu-item active" data-view="view-dashboard">Dashboard</button>
+      <button class="menu-item" data-view="view-subtareas">Subtareas</button>
+      <button class="menu-item" data-view="view-admin">Administrador</button>
+      <button class="menu-item" data-view="view-burndown">Burndown</button>
     </nav>
   </header>
 
@@ -32,9 +32,7 @@
           <div class="muted" id="sprintDates">–</div>
           <div class="chip" id="chipDias">Días restantes: <b>—</b></div>
         </div>
-        <div class="actions">
-          <button class="btn" id="btnRefreshDashboard">Actualizar</button>
-        </div>
+        <div class="days-card"><div class="days-label">Días restantes</div><div class="days-value" id="daysLeft">—</div><button class="btn ghost" id="btnRefreshDashboard">Actualizar</button></div>
       </section>
 
       <section class="kpis">
@@ -64,18 +62,19 @@
         </div>
       </section>
 
-      <section class="card">
-        <h3>Avance por lista </h3>
-        <div class="tbl-wrap">
-          <table id="tblLista">
-            <thead id="theadLista"></thead>
-            <tbody id="tbodyLista"></tbody>
-          </table>
-        </div>
-      </section>
+      <div class="grid-2">
+        <section class="card">
+          <h3>Avance por lista (vw_avance_por_lista)</h3>
+          <div class="tbl-wrap">
+            <table id="tblLista">
+              <thead id="theadLista"></thead>
+              <tbody id="tbodyLista"></tbody>
+            </table>
+          </div>
+        </section>
 
-      <section class="card">
-        <h3>Totales por propietario </h3>
+        <section class="card">
+          <h3>Totales por propietario (vw_totales_por_propietario)</h3>
         <div class="tbl-wrap">
           <table id="tblProp">
             <thead id="theadProp"></thead>
