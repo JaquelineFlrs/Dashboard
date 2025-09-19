@@ -37,7 +37,7 @@ async function guardarSprint(ev){
   }
 }
 
-async function cargarCsvYSync(){
+async async function cargarCsvYSync(){
   const fSub = $a('csvSubtareas').files[0];
   const fHis = $a('csvHistorias').files[0];
   if(!fSub && !fHis){

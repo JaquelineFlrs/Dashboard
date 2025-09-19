@@ -118,7 +118,7 @@ async function bulkSetMostrar(value, ids){
 }
 
 // hook
-window._hooks['view-subtareas'] = loadSubtareas;
+window._hooks = window._hooks || {}; window._hooks['view-subtareas'] = loadSubtareas;
 loadSubtareas();
 
 })();

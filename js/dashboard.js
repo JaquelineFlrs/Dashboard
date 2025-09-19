@@ -104,8 +104,8 @@ async function refreshDashboard(){
   }
 }
 
-document.getElementById('btnRefreshDashboard').addEventListener('click', refreshDashboard);
-window._hooks['view-dashboard'] = refreshDashboard;
+(()=>{ const b=document.getElementById('btnRefreshDashboard'); if(b) b.addEventListener('click', refreshDashboard); })();
+window._hooks = window._hooks || {}; window._hooks['view-dashboard'] = refreshDashboard;
 refreshDashboard();
 
 })();

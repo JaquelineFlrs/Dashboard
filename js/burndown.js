@@ -54,7 +54,7 @@ if((error || !data)){
 
 document.getElementById('btnRecalcBurndown').addEventListener('click', buildBurndown);
 // hook para refrescar al entrar a burndown
-window._hooks['view-burndown'] = buildBurndown;
+window._hooks = window._hooks || {}; window._hooks['view-burndown'] = buildBurndown;
 // carga inicial si se abre directo
 buildBurndown();
 

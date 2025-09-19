@@ -1,8 +1,13 @@
-const SUPABASE_URL = window.CONFIG?.SUPABASE_URL;
-const SUPABASE_ANON_KEY = window.CONFIG?.SUPABASE_ANON_KEY;
+// common.js bootstrap (normalized)
+window.CONFIG = window.CONFIG || {};
+const SUPABASE_URL = window.CONFIG.SUPABASE_URL;
+const SUPABASE_ANON_KEY = window.CONFIG.SUPABASE_ANON_KEY;
+window._hooks = window._hooks || {};
+
+
+
 // common.js — configuración, helpers, navegación horizontal, loading y utilidades
-const SUPABASE_URL = "https://hvdfzdkugkukwoctnpoa.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2ZGZ6ZGt1Z2t1a3dvY3RucG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MzM4ODgsImV4cCI6MjA3MzMwOTg4OH0.8RSq7GAN7Oh9mJOCP9lUndJyLIt";
+
 
 const VIEWS = {
   TOTALES_SPRINT:'vw_totales_sprint',
@@ -24,7 +29,7 @@ if(!SUPABASE_URL || !SUPABASE_ANON_KEY){
   showAlert('Falta configurar SUPABASE_URL o SUPABASE_ANON_KEY en js/config.js');
 }
 
-try{ window.db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }catch(e){ showAlert('Error creando cliente de Supabase. Revisa tu URL y Key.'); console.error(e); }
+try{ window.db = (window.supabase?.createClient||createClient)(SUPABASE_URL, SUPABASE_ANON_KEY); }catch(e){ showAlert('Error creando cliente de Supabase. Revisa tu URL y Key.'); console.error(e); }
 
 const $ = (sel)=> document.querySelector(sel);
 const $$ = (sel)=> Array.from(document.querySelectorAll(sel));
