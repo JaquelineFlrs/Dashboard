@@ -1,4 +1,7 @@
-/* Theme: rosa + gris claro + blanco (top navigation) */
+/* ==================================================
+   Theme: Rosa + Gris claro + Blanco (Top Navigation)
+   Consolidado y sin duplicados
+   ================================================== */
 :root{
   --accent:#ee5fa0;
   --accent-100:#fff1f7;
@@ -12,9 +15,14 @@
   --shadow:0 8px 24px rgba(0,0,0,.08);
 }
 
+/* ===== Base ===== */
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu}
+.muted{color:var(--text-2)}
+.small{font-size:12px}
+.small-bold{font-size:12px;font-weight:700}
 
+/* ===== Top Navigation ===== */
 .topnav{
   position:sticky; top:0; z-index:10;
   display:flex; align-items:center; justify-content:space-between;
@@ -22,566 +30,108 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-se
   border-bottom:1px solid var(--muted-2);
 }
 .brand{font-weight:800;font-size:18px;color:var(--accent)}
-.menu-h{display:flex;gap:8px;flex-wrap:wrap}
-.menu-item{display:flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid var(--muted-2);
-  background:#fff;border-radius:12px;cursor:pointer}
-.menu-item.active,.menu-item:hover{border-color:var(--accent);box-shadow:0 6px 16px rgba(238,95,160,.15)}
+.menu-h{display:flex;gap:12px;flex-wrap:wrap}
+.menu-item{
+  display:flex;gap:8px;align-items:center;
+  padding:10px 14px;border-radius:999px;border:1px solid var(--muted-2);
+  background:#fff;color:var(--text);font-weight:700;letter-spacing:.2px;cursor:pointer
+}
+.menu-item:hover{border-color:var(--accent);box-shadow:0 4px 14px rgba(238,95,160,.15)}
+.menu-item.active{background:var(--accent);color:#fff;border-color:transparent}
 
-.content{padding: 0 24px;max-width: 1440px;margin:0 auto}
+/* ===== Layout ===== */
+.content{padding:0 24px;max-width:1440px;margin:0 auto}
 .view{display:none}
 .view.active{display:block}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){ .grid-2{grid-template-columns:1fr} }
 
+/* ===== Cards & Chips ===== */
 .card{background:#fff;border:1px solid var(--muted-2);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin:14px 0}
-.header{display:flex;justify-content:space-between;align-items:center}
-.muted{color:var(--text-2)}
-.small{font-size:12px}
-.small-bold{font-size:12px;font-weight:700}
-
+.header{display:flex;justify-content:space-between;align-items:center;gap:16px}
 .chip{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:var(--muted);border:1px solid var(--muted-2)}
 
+/* ===== Buttons ===== */
+.btn{border:1px solid var(--muted-2);background:#fff;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.ghost{background:#fff;border-color:var(--muted-2)}
+.btn.danger{background:#fff0f3;border-color:#ffd2e2;color:#b2003b}
 .actions .btn{margin-left:8px}
 
-.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.kpi .kpi-label{font-size:12px;color:var(--text-2);text-transform:uppercase}
-.kpi .kpi-value{font-size:28px;font-weight:800;margin-top:6px}
-
-.tbl-wrap{overflow:auto}
-table{width:100%;border-collapse:separate;border-spacing:0}
-th,td{padding:10px 12px;border-bottom:1px solid var(--muted-2);white-space:nowrap;text-align:left}
-th{background:var(--muted);text-transform:uppercase;font-size:12px;color:var(--text-2)}
-tr:last-child td{border-bottom:0}
-
-.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
-.tools input[type="search"]{padding:8px 10px;border:1px solid var(--muted-2);border-radius:10px}
-
+/* ===== Forms ===== */
 .form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .form-grid .row{grid-column:1/-1}
 input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10px;border:1px solid var(--muted-2);border-radius:10px}
 
-.btn{border:1px solid var(--muted-2);background:#fff;border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer}
-.btn:hover{border-color:var(--accent)}
-.btn.danger{background:#fff0f3;border-color:#ffd2e2;color:#b2003b}
+/* ===== KPIs ===== */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:18px 0 10px}
+.kpi{
+  background:#ffffff; /* alto contraste sobre blanco */
+  color:#374151;
+  border:1px solid rgba(238,95,160,.25); /* borde rosa sutil */
+  box-shadow:0 6px 14px rgba(238,95,160,.12); /* sombra rosa sutil */
+  border-radius:14px; padding:24px 18px; text-align:center;
+  transition:transform .2s ease, box-shadow .2s ease;
+  display:flex; flex-direction:column; justify-content:center;
+}
+.kpi:hover{transform:translateY(-2px); box-shadow:0 10px 24px rgba(238,95,160,.18)}
+.kpi-label{color:#6b7280;font-size:18px;font-weight:600;margin-bottom:6px}
+.kpi-value{color:#111827;font-size:48px;font-weight:900;line-height:1.1}
+@media(max-width:800px){ .kpis{grid-template-columns:repeat(2,1fr)} }
 
+/* ===== Tables ===== */
+.tbl-wrap{overflow:auto; margin-top:24px}
+.tbl-wrap table{width:100%;border-collapse:separate;border-spacing:0}
+.tbl-wrap thead th{position:sticky;top:0;z-index:1;background:var(--accent);color:#fff;font-weight:700;font-size:14px;letter-spacing:.2px;border-bottom:0}
+th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space:nowrap;text-align:left}
+.tbl-wrap tbody tr:nth-child(even){background:#fff7fb}
+
+/* Bloques de tabla planos en dashboard */
+#view-dashboard .table-block{background:none !important;border:none !important;box-shadow:none !important;padding:0 !important;margin:12px 0 0 0 !important}
+#view-dashboard .table-block .tbl-wrap{margin-top:8px}
+#view-dashboard .table-block h3{margin:0 0 10px 0;font-weight:800;color:var(--text)}
+
+/* ===== Hero Header (blanco & grises) ===== */
+.hero-header{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:16px;padding:20px 0 16px 0;background:#fff;
+  border-bottom:1px solid var(--muted-2);margin-bottom:18px;
+}
+.hero-left{display:flex;flex-direction:column;gap:8px;min-width:0}
+#sprintTitle{margin:0;font-size:68px;line-height:1;font-weight:900;color:#111827;letter-spacing:.2px}
+.hero-dates{font-size:18px;font-weight:500;color:#4b5563}
+
+/* Días restantes minimal (solo tipografía) */
+.days-badge{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;background:none;border:none;box-shadow:none;padding:0}
+.days-badge .days-label{font-size:12px;font-weight:600;color:#42474f;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+.days-badge .days-number{font-size:46px;font-weight:900;color:#111827;line-height:1}
+
+/* ===== Loading ===== */
 .loading{display:flex;justify-content:center;align-items:center;gap:10px;color:var(--text-2);padding:16px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);opacity:.45;animation:bounce 1.4s infinite}
 .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
 @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
 
+/* ===== Responsive ===== */
 @media (max-width:900px){
   .form-grid{grid-template-columns:repeat(2,1fr)}
   .kpis{grid-template-columns:repeat(2,1fr)}
+  #sprintTitle{font-size:44px}
 }
 @media (max-width:580px){
   .form-grid{grid-template-columns:1fr}
   .kpis{grid-template-columns:1fr}
 }
 
-
-/* --- Refined top menu --- */
-.menu-h{display:flex;gap:12px;flex-wrap:wrap}
-.menu-item{
-  padding:10px 14px;border-radius:999px;border:1px solid var(--muted-2);
-  background:#fff;color:var(--text);font-weight:700;letter-spacing:.2px
-}
-.menu-item:hover{border-color:var(--accent);box-shadow:0 4px 14px rgba(238,95,160,.15)}
-.menu-item.active{background:var(--accent);color:#fff;border-color:transparent}
-
-/* --- Header redesign --- */
-.header{gap:16px}
-.days-card{
-  display:flex;align-items:center;gap:14px;background:var(--muted);
-  border:1px solid var(--muted-2);border-radius:14px;padding:10px 12px
-}
-.days-label{font-size:12px;color:var(--text-2);text-transform:uppercase}
-.days-value{font-size:28px;font-weight:800}
-.btn.ghost{background:#fff;border-color:var(--muted-2)}
-
-/* --- Side-by-side cards grid --- */
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:900px){ .grid-2{grid-template-columns:1fr} }
-
-/* Slightly larger KPI value */
-.kpi .kpi-value{font-size:32px}
-
-/* Tables header sticky for better UX */
-.tbl-wrap thead th{position:sticky;top:0;z-index:1}
-
-/* --- KPIs en una sola fila --- */
-.kpis {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.kpi {
-  text-align: center;
-  padding: 12px;
-}
-@media(max-width: 800px){
-  .kpis { grid-template-columns: repeat(2, 1fr); }
-}
-
-/* --- KPIs con estilo de tarjetas elegantes --- */
-.kpis {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin: 20px 0;
-}
-.kpi {
-  background: #fff;
-  border-radius: 16px;
-  padding: 24px 16px;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(238,95,160,0.25);
-  border: 1px solid rgba(238,95,160,0.2);
-  transition: transform .2s ease, box-shadow .2s ease;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-}
-.kpi:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(238,95,160,0.35);
-}
-.kpi-label {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 8px;
-  font-weight: 300;
-}
-.kpi-value {
-  font-size: 36px;
-  font-weight: 800;
-  color: #e91e63;
-  line-height: 1.2;
-}
-
-/* ===== Estilo tipo screenshot ===== */
-
-/* Header sprint: barra rosa fuerte con tipografía blanca y chip de días a la derecha */
-#view-dashboard #header.card{
-  background: var(--accent);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(238,95,160,.35);
-  padding: 28px 24px;
-  border-radius: 12px 12px 0 0;
-}
-#view-dashboard #header .muted{ color: #ffe6f1; }
-#sprintTitle{ font-size: 40px; line-height: 1.1; margin: 0 0 6px 0; color:#fff;}
-#sprintDates{ font-size: 14px; }
-#chipDias{ 
-  background: rgba(255,255,255,.15);
-  border: 1px solid rgba(255,255,255,.25);
-  color:#fff;
-}
-#view-dashboard #header .days-card{
-  background: transparent;
-  border: none;
-  color: #fff;
-}
-#view-dashboard #header .days-label{ color:#ffe6f1; }
-#view-dashboard #header .days-value{ font-size: 44px; color:#fff; }
-
-/* KPIs: bloques rosa claro, grandes y minimal */
-.kpis { grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 24px 0; }
-.kpi {
-  background: #f3a9c6; /* rosa suave */
-  border: none;
-  border-radius: 14px;
-  color: #fff;
-  padding: 22px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.25),
-              0 4px 10px rgba(238,95,160,.25);
-}
-.kpi-label { font-size: 14px; font-weight: 400; opacity:.9; text-transform:none; }
-.kpi-value { font-size: 32px; font-weight: 300; color:#fff; }
-
-/* Tablas: encabezado rosa, filas zebra, bordes sutiles */
-.tbl-wrap table thead th{
-  background: var(--accent);
-  color:#fff;
-  font-weight:700;
-  text-transform:none;
-  letter-spacing:.2px;
-  border-bottom: 0;
-}
-.tbl-wrap table tbody td, 
-.tbl-wrap table thead th{
-  border-bottom: 1px solid rgba(238,95,160,.25);
-}
-.tbl-wrap table tbody tr:nth-child(even){
-  background: #fff7fb; /* zebra rosado muy claro */
-}
-/* Paginação/summary */
-.table-footer, .pager, .small-bold{ color: var(--text-2); }
-
-/* === Ajustes finales según feedback === */
-
-/* Layout más ancho (menos márgenes a los lados) */
-.wrap, .content { 
-  max-width: 1440px; 
-  padding: 0 24px; 
-}
-
-/* Header blanco limpio */
-#view-dashboard #header.card{
-  background: #fff;
-  border: none;
-  box-shadow: none;
-  color: var(--text);
-  padding: 24px 0;
-}
-#sprintTitle{ font-size: 64px; font-weight: 800; color: var(--accent); margin:0; }
-#sprintDates{ font-size: 16px; color: var(--text-2); }
-
-/* KPIs cards rosa con texto blanco */
-.kpis { grid-template-columns: repeat(4,1fr); gap: 24px; margin: 24px 0; }
-.kpi {
-  background: var(--accent);
-  border-radius: 14px;
-  color: #fff;
-  padding: 28px 20px;
-  text-align: center;
-}
-.kpi-label {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color:#fff;
-}
-.kpi-value {
-  font-size: 48px;
-  font-weight: 900;
-  color:#fff;
-}
-
-/* Tablas sin card, solo tabla con encabezado rosa */
-.tbl-wrap { 
-  background: none; 
-  box-shadow: none; 
-  border: none; 
-  padding: 0; 
-  margin-top: 24px;
-}
-.tbl-wrap table{ width:100%; border-collapse:separate; border-spacing:0; }
-.tbl-wrap thead th {
-  background: var(--accent);
-  color:#fff;
-  font-weight:700;
-  font-size:14px;
-  border-bottom:0;
-}
-.tbl-wrap tbody td, .tbl-wrap thead th {
-  border-bottom:1px solid rgba(238,95,160,.25);
-}
-.tbl-wrap tbody tr:nth-child(even){ background:#fff7fb; }
-
-/* --- Flatten tables on dashboard --- */
-#view-dashboard .table-block {
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 12px 0 0 0 !important;
-}
-/* Optional wrapper spacing for tables */
-#view-dashboard .table-block .tbl-wrap { margin-top: 8px; }
-
-/* Wider table titles and cleaner look */
-#view-dashboard .table-block h3 { 
-  margin: 0 0 10px 0; 
-  font-weight: 800;
-  color: var(--text);
-}
-
-/* --- KPI adjustments: bigger titles, all text white --- */
-.kpi {
-  background: var(--accent);
-  color: #fff !important;
-}
-.kpi-label {
-  font-size: 22px !important;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: #fff !important;
-}
-.kpi-value {
-  font-size: 56px !important;
-  font-weight: 900;
-  color: #fff !important;
-}
-
-/* --- KPIs: textos blancos y más grandes --- */
-.kpi { color:#fff; }
-.kpi-label { color:#fff !important; font-size:22px !important; font-weight:700 !important; letter-spacing:.3px; }
-.kpi-value { color:#fff !important; font-size:56px !important; font-weight:900 !important; line-height:1.05; }
-
-#view-dashboard #header.card{ background:#f3f4f6 !important; color:var(--text) !important; }
-
-/* --- Header blanco con letras grises --- */
+/* ===== Overrides específicos del dashboard ===== */
 #view-dashboard #header.card{
   background:#fff !important;
   border:none !important;
   box-shadow:none !important;
-  color:#374151 !important; /* gris oscuro */
-}
-#view-dashboard #header #sprintTitle{
-  color:#111827 !important; /* casi negro */
-  font-size:64px !important;
-  font-weight:900 !important;
-}
-#view-dashboard #header #sprintDates{
-  color:#6b7280 !important; /* gris medio */
-  font-size:16px !important;
-}
-#view-dashboard #header .days-card{
   color:#374151 !important;
+  padding:24px 0;
 }
-#view-dashboard #header .days-value{
-  color:#111827 !important;
-  font-size:44px !important;
-  font-weight:800 !important;
-}
-
-/* ===== Hero Header limpio (blanco + grises) ===== */
-.hero-header{
-  display:flex; align-items:flex-end; justify-content:space-between;
-  gap:16px; padding:18px 0 12px 0; background:#fff;
-  border-bottom:1px solid var(--muted-2);
-  margin-bottom: 12px;
-}
-.hero-left{ display:flex; flex-direction:column; gap:6px; min-width:0; }
-.hero-right{ display:flex; align-items:center; }
-
-#sprintTitle{
-  margin:0; font-size:72px; line-height:1; font-weight:900;
-  color:#111827; letter-spacing:.2px;
-}
-.hero-dates{ font-size:16px; color:#6b7280; }
-
-.days-badge{
-  display:flex; align-items:center; gap:12px;
-  padding:10px 14px; border-radius:999px; background:#6b7280;
-  border:1px solid var(--muted-2); box-shadow:0 4px 14px rgba(0,0,0,.06);
-}
-.days-badge .days-label{
-  font-size:13px; color:#42474f; letter-spacing:.6px; font-weight:700;
-}
-.days-badge .days-number{
-  font-size:40px; font-weight:900; color:#111827; min-width:40px; text-align:right;
-}
-
-@media (max-width: 900px){
-  #sprintTitle{ font-size:48px; }
-  .days-badge .days-number{ font-size:32px; }
-}
-
-/* === Mejora fechas debajo del Sprint === */
-.hero-dates{
-  font-size:18px;
-  font-weight:500;
-  color:#6b7280;
-  display:inline-block;
-  padding:6px 14px;
-  background:#f9fafb;
-  border:1px solid #e5e7eb;
-  border-radius:8px;
-  box-shadow:inset 0 1px 2px rgba(0,0,0,.03);
-}
-.hero-dates::before{
-  content:"📅";
-  margin-right:8px;
-  color:#ec4899;
-}
-
-/* === Badge de días restantes mejorado === */
-.days-badge{
-  display:flex; align-items:center; gap:12px;
-  padding:12px 18px; border-radius:999px; background:#fff;
-  border:1px solid #fbcfe8;
-  box-shadow:0 4px 14px rgba(238,95,160,.15);
-}
-.days-badge .days-label{
-  font-size:14px;
-  color:#ec4899;
-  font-weight:700;
-  letter-spacing:.8px;
-}
-.days-badge .days-number{
-  font-size:44px;
-  font-weight:900;
-  color:#111827;
-  min-width:40px;
-  text-align:right;
-}
-
-/* ===== Hero Header Blanco & Texto Negro ===== */
-.hero-header{
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap:16px;
-  padding:24px 0 20px 0;
-  background:#fff;
-  border-bottom:1px solid #e5e7eb;
-  margin-bottom:20px;
-}
-
-.hero-left{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-
-#sprintTitle{
-  margin:0;
-  font-size:72px;
-  line-height:1;
-  font-weight:900;
-  color:#111827;
-}
-
-.hero-dates{
-  font-size:18px;
-  font-weight:500;
-  color:#374151;
-}
-
-.days-badge{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  padding:14px 24px;
-  border-radius:12px;
-  background:#fff;
-  border:1px solid #e5e7eb;
-  box-shadow:0 2px 6px rgba(0,0,0,.05);
-}
-
-.days-badge .days-label{
-  font-size:14px;
-  font-weight:600;
-  color:#42474f;
-  margin-bottom:4px;
-}
-
-.days-badge .days-number{
-  font-size:42px;
-  font-weight:900;
-  color:#111827;
-}
-
-/* ====== REFRESH — estilo como tu imagen, pero minimal blanco/gris ====== */
-
-/* Header blanco, tipografía gris/negro y contador a la derecha minimal */
-.hero-header{
-  display:flex; align-items:flex-end; justify-content:space-between;
-  gap:16px; padding:20px 0 16px 0; background:#fff;
-  border-bottom:1px solid #e5e7eb; margin-bottom:18px;
-}
-#sprintTitle{ margin:0; font-size:68px; line-height:1; font-weight:900; color:#111827; letter-spacing:.2px; }
-.hero-dates{ font-size:18px; font-weight:500; color:#374151; }
-
-/* Contador de días minimal (sin pastilla) */
-.days-badge{
-  display:flex; align-items:flex-end; gap:10px;
-  background:transparent; border:none; box-shadow:none; padding:0;
-}
-.days-badge .days-label{
-  font-size:12px; color:#42474f; font-weight:700; letter-spacing:.8px; text-transform:uppercase;
-  margin-bottom:6px;
-}
-.days-badge .days-number{
-  font-size:46px; font-weight:900; color:#111827; line-height:1;
-}
-
-/* KPIs blancos, texto gris, borde rosa y sombra rosa */
-.kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:18px 0 10px; }
-.kpi{
-  background:#fff; color:#374151;
-  border:1px solid rgba(238,95,160,.45);         /* borde rosa */
-  box-shadow:0 10px 24px rgba(238,95,160,.18);   /* sombra rosa */
-  border-radius:14px; padding:22px 16px; text-align:center;
-}
-.kpi-label{ color:#6b7280; font-size:18px; font-weight:700; letter-spacing:.3px; margin-bottom:8px; }
-.kpi-value{ color:#111827; font-size:48px; font-weight:900; line-height:1.05; }
-
-@media(max-width: 900px){
-  #sprintTitle{ font-size:44px; }
-  .kpis{ grid-template-columns:repeat(2,1fr); }
-  .kpi-value{ font-size:40px; }
-}
-
-/* Tablas planas con encabezado rosa y zebra suave (ya aplicado, refuerzo) */
-.tbl-wrap table thead th{ background:#ec4899; color:#fff; }
-.tbl-wrap table tbody tr:nth-child(even){ background:#fff7fb; }
-
-/* === Limpieza final de header y KPIs con buen contraste === */
-
-/* Fechas: sin icono, solo texto gris */
-.hero-dates{ font-size:18px; font-weight:500; color:#4b5563; background:none; border:none; padding:0; box-shadow:none; }
-.hero-dates::before{ content:none !important; }
-
-/* Días restantes: tipografía pura, sin cajas */
-.days-badge{ display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-end; background:none; border:none; box-shadow:none; padding:0; }
-.days-badge .days-label{ font-size:12px; font-weight:600; color:#42474f; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
-.days-badge .days-number{ font-size:42px; font-weight:900; color:#111827; line-height:1; }
-
-/* KPIs: fondo blanco, texto gris/negro (alto contraste), borde y sombra rosa sutil */
-.kpi{ background:#ffffff; color:#374151; border:1px solid rgba(238,95,160,.25); box-shadow:0 6px 14px rgba(238,95,160,.12); border-radius:14px; padding:24px 18px; text-align:center; }
-.kpi-label{ color:#6b7280; font-size:18px; font-weight:600; margin-bottom:6px; }
-.kpi-value{ color:#111827; font-size:48px; font-weight:900; line-height:1.1; }
-
-/* === Ajustes finales de header y KPIs === */
-
-/* Días restantes: label más fuerte y número centrado */
-.days-badge{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  justify-content:center; /* centrado vertical */
-  background:none;
-  border:none;
-  box-shadow:none;
-  padding:0;
-}
-.days-badge .days-label{
-  font-size:12px;
-  font-weight:600;
-  color:#42474f; /* gris más fuerte */
-  margin-bottom:4px;
-  text-transform:uppercase;
-  letter-spacing:.05em;
-}
-.days-badge .days-number{
-  font-size:48px;
-  font-weight:900;
-  color:#111827;
-  line-height:1;
-}
-
-/* KPIs con contraste asegurado */
-.kpi{
-  background:#ffffff;
-  color:#374151 !important;
-  border:1px solid rgba(238,95,160,.25);
-  box-shadow:0 6px 14px rgba(238,95,160,.12);
-  border-radius:14px;
-  padding:32px 20px; /* más espacio interno */
-  text-align:center;
-}
-.kpi-label{
-  color:#374151 !important;
-  font-size:18px;
-  font-weight:600;
-  margin-bottom:6px;
-}
-.kpi-value{
-  color:#111827 !important;
-  font-size:52px;
-  font-weight:900;
-  line-height:1.1;
-}
+#view-dashboard #header #sprintTitle{color:#111827 !important;font-size:64px !important;font-weight:900 !important}
+#view-dashboard #header #sprintDates{color:#6b7280 !important;font-size:16px !important}
+#view-dashboard #header .days-card{color:#374151 !important}
+#view-dashboard #header .days-value{color:#111827 !important;font-size:44px !important;font-weight:800 !important}
