@@ -169,7 +169,7 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   border-radius: 12px 12px 0 0;
 }
 #view-dashboard #header .muted{ color: #ffe6f1; }
-#sprintTitle{ font-size: 56px; line-height: 1.1; margin: 0 0 6px 0; color:#fff;}
+#sprintTitle{ font-size: 40px; line-height: 1.1; margin: 0 0 6px 0; color:#fff;}
 #sprintDates{ font-size: 14px; }
 #chipDias{ 
   background: rgba(255,255,255,.15);
@@ -181,7 +181,7 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   border: none;
   color: #fff;
 }
-#view-dashboard #header .days-label{ color:#ffe6f1; }
+#view-dashboard #header .days-label{ color:#fff; }
 #view-dashboard #header .days-value{ font-size: 44px; color:#fff; }
 
 /* KPIs: bloques rosa claro, grandes y minimal */
@@ -195,8 +195,8 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   box-shadow: inset 0 1px 0 rgba(255,255,255,.25),
               0 4px 10px rgba(238,95,160,.25);
 }
-.kpi-label { font-size: 16px; font-weight: 600; opacity:.9; text-transform:none; }
-.kpi-value { font-size: 42px; font-weight: 800; color:#fff; }
+.kpi-label { font-size: 14px; font-weight: 400; opacity:.9; text-transform:none; }
+.kpi-value { font-size: 32px; font-weight: 300; color:#fff; }
 
 /* Tablas: encabezado rosa, filas zebra, bordes sutiles */
 .tbl-wrap table thead th{
