@@ -5,7 +5,7 @@ const $id = (id)=> document.getElementById(id);
 
 // === Guardar sprint ===
 
-async async function guardarSprint(ev){
+async function guardarSprint(ev){
   ev.preventDefault();
   const nombre   = $id('spNombre').value.trim();
   const inicio   = $id('spInicio').value;

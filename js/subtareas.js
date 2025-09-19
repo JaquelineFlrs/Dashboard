@@ -15,6 +15,7 @@ let subtareasRaw = [];
 let subKeys = {};
 
 const $sub = (id)=> document.getElementById(id);
+function isTerminada(row){ try{ const key=subKeys.fecha_cierre_marcada||'fecha_cierre_marcada'; const v=row&&key in row? row[key]:null; return v!==null && v!==undefined && String(v).trim()!==''; }catch(e){ return false; } }
 // UI state
 const SUB_UI_KEY = 'subtareas_ui_v1';
 let ui = { q:'', onlyShown:false, sort:{ key:null, dir:1 } };
@@ -158,3 +159,24 @@ window._hooks = window._hooks || {}; window._hooks['view-subtareas'] = loadSubta
 loadSubtareas();
 
 })();
+
+async function updateTerminada(id, checked){
+  try{
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth()+1).padStart(2,'0');
+    const d = String(today.getDate()).padStart(2,'0');
+    const value = checked ? `${y}-${m}-${d}` : null;
+    const client = window.db || window.supabase || (typeof sb!=='undefined'?sb:null);
+    if(!client){ console.warn('Supabase client not found'); return; }
+    const { error } = await client
+      .from('SUBTAREAS')
+      .update({ [subKeys.fecha_cierre_marcada || 'fecha_cierre_marcada']: value })
+      .eq(subKeys.id, id);
+    if(error) throw error;
+    const row = (window.subtareasRaw||[]).find(x=> String(x[subKeys.id])===String(id));
+    if(row){ row[subKeys.fecha_cierre_marcada || 'fecha_cierre_marcada'] = value; }
+  }catch(e){
+    console.error(e); alert('No se pudo actualizar Terminada.');
+  }
+}
