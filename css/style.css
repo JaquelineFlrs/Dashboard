@@ -145,10 +145,10 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   box-shadow: 0 8px 20px rgba(238,95,160,0.35);
 }
 .kpi-label {
-  font-size: 16px;
+  font-size: 14px;
   color: #666;
   margin-bottom: 8px;
-  font-weight: 500;
+  font-weight: 300;
 }
 .kpi-value {
   font-size: 36px;
