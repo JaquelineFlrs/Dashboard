@@ -17,8 +17,8 @@ async function guardarSprint(ev){
     return;
   }
 
-  if(!confirm('¡ATENCIÓN! Esto TRUNCATE: SUBTAREAS, HISTORIAS y SPRINTS, y creará un nuevo sprint ACTIVO.
-¿Deseas continuar?')) return;
+  if(!confirm(`¡ATENCIÓN! Esto TRUNCATE: SUBTAREAS, HISTORIAS y SPRINTS, y creará un nuevo sprint ACTIVO.
+¿Deseas continuar?`)) return;
 
   try{
     CM.showLoading?.(true);
@@ -41,7 +41,8 @@ async function guardarSprint(ev){
   }
 }
 
-  if(!confirm('¡ATENCIÓN! Esto borrará SUBTAREAS, HISTORIAS y SPRINTS.\n¿Deseas continuar?')) return;
+  if(!confirm(`¡ATENCIÓN! Esto TRUNCATE: SUBTAREAS, HISTORIAS y SPRINTS, y creará un nuevo sprint ACTIVO.
+¿Deseas continuar?`)) return;
 
   try{
     CM.showLoading?.(true);

@@ -67,7 +67,6 @@ function getFiltered(){
     const okShown = onlyShown ? normalizeBool(r[subKeys.mostrar]) : true;
     return okQ && okShown;
   });
-  return applySort(res);
 }
 
 
@@ -87,7 +86,6 @@ function applySort(arr){
     if(av>bv) return 1*dir;
     return 0;
   });
-  return applySort(res);
 }
 
 async function updateTerminada(id, checked){
@@ -209,7 +207,6 @@ function renderSubtareas(){
       }
     });
   });
-  return applySort(res);
 }
 
 const onSearch = debounce(()=>{ ui.q = $sub('subSearch').value||''; localStorage.setItem(SUB_UI_KEY, JSON.stringify(ui)); renderSubtareas(); updateCounter(); }, 200);
@@ -221,25 +218,6 @@ $sub('btnMarkAll') && $sub('btnMarkAll').addEventListener('click', async ()=>{
   await bulkSetMostrar(true, ids);
 });
 
-// Export CSV de las filas filtradas (incluye columnas dinámicas detectadas)
-($sub('btnExportCsv') && $sub('btnExportCsv').addEventListener('click', ()=>{
-  const rows = getFiltered();
-  const headers = [
-    { key: subKeys.id, label: subKeys.id },
-    { key: subKeys.nombre, label: subKeys.nombre },
-  ];
-  if(subKeys.propietario) headers.push({ key: subKeys.propietario, label: subKeys.propietario });
-  if(subKeys.horas) headers.push({ key: subKeys.horas, label: subKeys.horas });
-  headers.push({ key: subKeys.mostrar, label: subKeys.mostrar }); headers.push({ key: subKeys.fecha_cierre_marcada, label: 'fecha_cierre_marcada' });
-  const csv = toCsv(rows, headers);
-  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'subtareas_filtrado.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-) ;
 // Restaurar estado UI (query/checkbox)
 (function restoreUI(){
   if(ui.q) $sub('subSearch').value = ui.q;
