@@ -164,3 +164,10 @@ th.sortable .arrow{font-size:.8em;opacity:.7;margin-left:6px}
 /* Sortable */
 th.sortable{cursor:pointer;user-select:none}
 th.sortable .arrow{font-size:.8em;opacity:.7;margin-left:6px}
+
+
+/* Ensure Subtareas table fixed layout applies */
+#tblSubSel.tbl-subt{table-layout:fixed;width:100%}
+#tblSubSel.tbl-subt th.chk,#tblSubSel.tbl-subt td.chk{width:48px;text-align:center}
+#tblSubSel.tbl-subt th.id,#tblSubSel.tbl-subt td.id{width:160px}
+#tblSubSel.tbl-subt th.dur,#tblSubSel.tbl-subt td.dur{width:88px;text-align:right}

@@ -146,7 +146,8 @@ function renderSubtareas(){
   const head = $sub('theadSubSel'), body = $sub('tbodySubSel');
   const rows = getFiltered();
   head.innerHTML = `<tr>
-    <th>Mostrar</th>
+    <th class="chk">Terminada</th>
+    <th class="chk">Mostrar</th>
     <th>${subKeys.id}</th>
     <th>${subKeys.nombre}</th>
     ${subKeys.propietario? `<th>${subKeys.propietario}</th>`:''}
@@ -156,7 +157,7 @@ function renderSubtareas(){
   body.innerHTML = rows.map(r=>{
     const checked = normalizeBool(r[subKeys.mostrar]) ? 'checked' : '';
     return `<tr data-id="${escapeHtml(r[subKeys.id])}">
-      <td><input type="checkbox" class="chkTerminada" ${isTerminada(r)?'checked':''} data-id="${r[subKeys.id]}"></td><td class="chk"><input type="checkbox" class="chkMostrar" ${checked}></td>
+      <td class="chk"><input type="checkbox" class="chkTerminada" ${isTerminada(r)?'checked':''} data-id="${r[subKeys.id]}"></td><td class="chk"><input type="checkbox" class="chkMostrar" ${checked}></td>
       <td>${escapeHtml(r[subKeys.id])}</td>
       <td>${escapeHtml(r[subKeys.nombre])}</td>
       ${subKeys.propietario? `<td>${escapeHtml(r[subKeys.propietario])}</td>`:''}
@@ -214,14 +215,14 @@ function renderSubtareas(){
 const onSearch = debounce(()=>{ ui.q = $sub('subSearch').value||''; localStorage.setItem(SUB_UI_KEY, JSON.stringify(ui)); renderSubtareas(); updateCounter(); }, 200);
 $sub('subSearch').addEventListener('input', onSearch);
 $sub('subOnlyShown').addEventListener('change', ()=>{ ui.onlyShown = $sub('subOnlyShown').checked; localStorage.setItem(SUB_UI_KEY, JSON.stringify(ui)); renderSubtareas(); updateCounter(); });
-$sub('btnMarkAll').addEventListener('click', async ()=>{
+$sub('btnMarkAll') && $sub('btnMarkAll').addEventListener('click', async ()=>{
   const ids = Array.from(document.querySelectorAll('#tbodySubSel tr[data-id]')).map(tr=> tr.getAttribute('data-id'));
   if(!ids.length) return;
   await bulkSetMostrar(true, ids);
 });
 
 // Export CSV de las filas filtradas (incluye columnas dinámicas detectadas)
-$sub('btnExportCsv')?.addEventListener('click', ()=>{
+($sub('btnExportCsv') && $sub('btnExportCsv').addEventListener('click', ()=>{
   const rows = getFiltered();
   const headers = [
     { key: subKeys.id, label: subKeys.id },
@@ -238,13 +239,14 @@ $sub('btnExportCsv')?.addEventListener('click', ()=>{
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 });
+) ;
 // Restaurar estado UI (query/checkbox)
 (function restoreUI(){
   if(ui.q) $sub('subSearch').value = ui.q;
   if(ui.onlyShown) $sub('subOnlyShown').checked = true;
 })();
 
-$sub('btnUnmarkAll').addEventListener('click', async ()=>{
+$sub('btnUnmarkAll') && $sub('btnUnmarkAll').addEventListener('click', async ()=>{
   const ids = Array.from(document.querySelectorAll('#tbodySubSel tr[data-id]')).map(tr=> tr.getAttribute('data-id'));
   if(!ids.length) return;
   await bulkSetMostrar(false, ids);

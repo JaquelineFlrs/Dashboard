@@ -71,15 +71,11 @@
         <div class="tools">
           <input id="subSearch" class="input" placeholder="Buscar subtarea / propietario">
           <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="subOnlyShown"> Ver solo marcadas</label>
-          <div class="btn-group">
-            <button class="btn sm" id="btnMarkAll">Marcar todo</button>
-            <button class="btn sm" id="btnUnmarkAll">Desmarcar todo</button>
-            <button class="btn sm" id="btnExportCsv">Exportar CSV</button>
-          </div>
+          
           <span class="muted" id="subCounter"></span>
         </div>
         <div class="tbl-wrap">
-          <table id="tblSubSel">
+          <table id="tblSubSel" class="tbl-subt">
             <thead id="theadSubSel"></thead>
             <tbody id="tbodySubSel"></tbody>
           </table>
