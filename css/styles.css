@@ -1,0 +1,22 @@
+/* === Ajustes finales: días restantes y KPIs más femeninos === */
+
+/* Días restantes en negro */
+.days-badge .days-label{
+  color:#111827 !important; /* negro */
+}
+
+/* KPIs con tipografía más delicada */
+.kpi-label{
+  color:#4b5563 !important;  /* gris medio */
+  font-size:18px;
+  font-weight:500;           /* más ligero */
+  margin-bottom:6px;
+  letter-spacing:.02em;
+}
+
+.kpi-value{
+  color:#111827 !important;  /* negro */
+  font-size:46px;
+  font-weight:600;           /* más ligero que 900 */
+  line-height:1.2;
+}
