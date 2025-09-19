@@ -76,7 +76,7 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
 }
 .kpi:hover{transform:translateY(-2px); box-shadow:0 10px 24px rgba(238,95,160,.18)}
 .kpi-label{color:#6b7280;font-size:18px;font-weight:600;margin-bottom:6px}
-.kpi-value{color:#111827;font-size:48px;font-weight:900;line-height:1.1}
+.kpi-value{color:#111827;font-size:48px;font-weight:700;line-height:1.1}
 @media(max-width:800px){ .kpis{grid-template-columns:repeat(2,1fr)} }
 
 /* ===== Tables ===== */
@@ -131,7 +131,7 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
   color:#374151 !important;
   padding:24px 0;
 }
-#view-dashboard #header #sprintTitle{color:#111827 !important;font-size:50px !important;font-weight:500 !important}
+#view-dashboard #header #sprintTitle{color:#111827 !important;font-size:50px !important;font-weight:800 !important}
 #view-dashboard #header #sprintDates{color:#ee5fa0 !important;font-size:16px !important}
 #view-dashboard #header .days-card{color:#374151 !important}
 #view-dashboard #header .days-value{color:#111827 !important;font-size:44px !important;font-weight:800 !important}
