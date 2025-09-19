@@ -23,16 +23,19 @@ async function guardarSprint(ev){
   try{
     CM.showLoading?.(true);
 
-    // Solo RPC con SECURITY DEFINER (evita problemas de RLS)
-    const { error } = await window.db.rpc('admin_reset_sprint', {
-      p_nombre: nombre,
-      p_inicio: inicio,
-      p_fin:    fin,
-      p_total:  totalHrs
-    });
+    await window.db.from('SUBTAREAS').delete();
+    await window.db.from('HISTORIAS').delete();
+    await window.db.from('sprints').delete();
+
+    const { error } = await window.db.from('sprints').insert([{
+      nombre,
+      fecha_inicio: inicio,
+      fecha_fin: fin,
+      total_horas: totalHrs
+    }]);
     if(error) throw error;
 
-    alert('Sprint reestablecido e insertado como activo (si existe esa columna).');
+    alert('Sprint guardado.');
   }catch(e){
     console.error(e);
     alert('No se pudo guardar el sprint: '+(e.message||e));
@@ -41,8 +44,7 @@ async function guardarSprint(ev){
   }
 }
 
-  if(!confirm(`¡ATENCIÓN! Esto TRUNCATE: SUBTAREAS, HISTORIAS y SPRINTS, y creará un nuevo sprint ACTIVO.
-¿Deseas continuar?`)) return;
+  if(!confirm('¡ATENCIÓN! Esto borrará SUBTAREAS, HISTORIAS y SPRINTS.\n¿Deseas continuar?')) return;
 
   try{
     CM.showLoading?.(true);
