@@ -18,7 +18,24 @@ async function loadSprintHeader(){
 }
 
 async function loadKpis(){
-  const { data, error } = await window.db.from(CM.VIEWS.TOTALES_SPRINT).select('*').limit(1).maybeSingle();
+  const KPI_SOURCES = {
+    pctSprint:      { view: 'vw_totales_sprint', column: 'pct_avance' },
+    horasSubtarea:  { view: 'vw_totales_sprint', column: 'total_x_sub' },
+    totalPendientes:{ view: 'vw_totales_sprint', column: 'total_pendientes' },
+    horasTerminadas:{ view: 'vw_totales_sprint', column: 'total_terminadas' },
+  };
+  const { data, error } = await window.db.from(KPI_SOURCES.pctSprint.view).select('*').limit(1).maybeSingle();
+  if(error){ console.error(error); return; }
+  if(!data) return;
+  const pct = Number(data[KPI_SOURCES.pctSprint.column] ?? 0);
+  const hrsSub = Number(data[KPI_SOURCES.horasSubtarea.column] ?? 0);
+  const totPen = Number(data[KPI_SOURCES.totalPendientes.column] ?? 0);
+  const hrsTer = Number(data[KPI_SOURCES.horasTerminadas.column] ?? 0);
+  document.getElementById('kpiPctSprint').textContent = (isFinite(pct)? pct.toFixed(1):0) + '%';
+  document.getElementById('kpiHorasSubtarea').textContent = isFinite(hrsSub)? hrsSub.toLocaleString('es-MX'): '—';
+  document.getElementById('kpiTotalPendientes').textContent = isFinite(totPen)? totPen.toLocaleString('es-MX'): '—';
+  document.getElementById('kpiHorasTerminadas').textContent = isFinite(hrsTer)? hrsTer.toLocaleString('es-MX'): '—';
+} = await window.db.from(CM.VIEWS.TOTALES_SPRINT).select('*').limit(1).maybeSingle();
   if(error){ console.error(error); return; }
   if(!data) return;
   document.getElementById('kpiAvance').textContent = fmtPct(data.avance_pct ?? data.pct_avance ?? 0);

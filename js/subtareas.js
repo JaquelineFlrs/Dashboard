@@ -74,7 +74,7 @@ function renderSubtareas(){
       const id = tr?.getAttribute('data-id');
       if(!id) return;
       try{
-        const payload={}; payload[subKeys.mostrar]=ev.target.checked;
+        const payload={}; payload[subKeys.mostrar] = ev.target.checked ? 1 : 0;
         const { error } = await window.db.from(CM.TABLES.SUBTAREAS).update(payload).eq(subKeys.id, id);
         if(error) throw error;
         const row = subtareasRaw.find(x=> String(x[subKeys.id])===String(id));
@@ -105,7 +105,7 @@ async function bulkSetMostrar(value, ids){
   try{
     for(let i=0;i<ids.length;i+=chunk){
       const slice = ids.slice(i,i+chunk);
-      const payload={ mostrar:value };
+      const payload = { mostrar: value ? 1 : 0 };
       const { error } = await window.db.from(CM.TABLES.SUBTAREAS).update(payload).in('id', slice);
       if(error) throw error;
       // update local

@@ -8,7 +8,23 @@ let bdChart = null;
 async function buildBurndown(){
   CM.showLoading(true);
   try{
-    const { data, error } = await window.db.from(CM.TABLES.SPRINTS).select('fecha_inicio, fecha_fin, total_hrs').eq('activo',true).limit(1).maybeSingle();
+    let { data, error } = await window.db.from(CM.TABLES.SPRINTS)
+  .select('fecha_inicio, fecha_fin, total_hrs')
+  .or('activo.eq.true,activo.eq.1')
+  .limit(1)
+  .maybeSingle();
+if((error || !data)){
+  const today = new Date().toISOString().slice(0,10);
+  const q = await window.db.from(CM.TABLES.SPRINTS)
+    .select('fecha_inicio, fecha_fin, total_hrs')
+    .lte('fecha_inicio', today)
+    .gte('fecha_fin', today)
+    .order('fecha_inicio', { ascending:false })
+    .limit(1)
+    .maybeSingle();
+  data = q.data; error = q.error;
+}
+
     if(error || !data){ console.warn('Sin sprint activo para burndown.'); return; }
     const totalHrs = Number(data.total_hrs || 0);
     const excludeWeekends = document.getElementById('bdExcludeWeekends').checked;
