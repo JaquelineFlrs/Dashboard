@@ -15,14 +15,6 @@ let subtareasRaw = [];
 let subKeys = {};
 
 const $sub = (id)=> document.getElementById(id);
-const subKeys = {
-  id: 'ID de Tarea',
-  nombre: 'Nombre de Tarea',
-  propietario: 'Propietario',
-  horas: 'Duración',
-  mostrar: 'Mostrar',
-  fecha_cierre_marcada: 'fecha_cierre_marcada'
-};
 
 function findKey(obj, list){ return list.find(k=> Object.prototype.hasOwnProperty.call(obj,k)); }
 function normalizeBool(v){ return (v===true || v==='true' || v===1 || v==='1'); }
@@ -57,7 +49,9 @@ function getFiltered(){
 function renderSubtareas(){
   const head = $sub('theadSubSel'), body = $sub('tbodySubSel');
   const rows = getFiltered();
-  head.innerHTML = `<tr>\n    <th class="chk">Terminada</th>\n    <th class="chk">Mostrar</th>
+  head.innerHTML = `<tr>
+    <th class="chk">Terminada</th>
+    <th class="chk">Mostrar</th>
     <th>${subKeys.id}</th>
     <th>${subKeys.nombre}</th>
     ${subKeys.propietario? `<th>${subKeys.propietario}</th>`:''}
@@ -66,12 +60,12 @@ function renderSubtareas(){
   if(rows.length===0){ body.innerHTML = '<tr><td colspan="5">Sin datos</td></tr>'; return; }
   body.innerHTML = rows.map(r=>{
     const checked = normalizeBool(r[subKeys.mostrar]) ? 'checked' : '';
-    return `<tr data-id="${escapeHtml(pick(r, [subKeys.id, 'ID', 'Id', 'id']))}">
+    return `<tr data-id="${escapeHtml(r[subKeys.id])}">
       <td><input type="checkbox" class="chkMostrar" ${checked}></td>
-      <td>${escapeHtml(pick(r, [subKeys.id, 'ID', 'Id', 'id']))}</td>
-      <td>${escapeHtml(pick(r, [subKeys.nombre, 'Nombre', 'nombre', 'Nombre de Subtarea']))}</td>
-      ${subKeys.propietario? `<td>${escapeHtml(pick(r, [subKeys.propietario, 'Owner', 'owner', 'Asignado a']))}</td>`:''}
-      ${subKeys.horas? `<td>${escapeHtml(pick(r, [subKeys.horas, 'Horas', 'horas', 'Duración (h)']))}</td>`:''}
+      <td>${escapeHtml(r[subKeys.id])}</td>
+      <td>${escapeHtml(r[subKeys.nombre])}</td>
+      ${subKeys.propietario? `<td>${escapeHtml(r[subKeys.propietario])}</td>`:''}
+      ${subKeys.horas? `<td>${escapeHtml(r[subKeys.horas])}</td>`:''}
     </tr>`;
   }).join('');
 
@@ -129,24 +123,3 @@ window._hooks = window._hooks || {}; window._hooks['view-subtareas'] = loadSubta
 loadSubtareas();
 
 })();
-
-async function updateTerminada(id, checked){
-  try{
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth()+1).padStart(2,'0');
-    const d = String(today.getDate()).padStart(2,'0');
-    const value = checked ? `${y}-${m}-${d}` : null;
-    const client = window.db || window.supabase || sb;
-    if(!client){ console.warn('Supabase client not found'); return; }
-    const { error } = await client
-      .from('SUBTAREAS')
-      .update({ [subKeys.fecha_cierre_marcada]: value })
-      .eq(subKeys.id, id);
-    if(error) throw error;
-    const row = (window.subtareasRaw||[]).find(x=> String(pick(x, [subKeys.id, 'ID', 'Id', 'id'])) === String(id));
-    if(row){ row[subKeys.fecha_cierre_marcada] = value; }
-  }catch(e){
-    console.error(e); alert('No se pudo actualizar Terminada.');
-  }
-}
