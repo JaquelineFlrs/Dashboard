@@ -22,9 +22,9 @@ async function guardarSprint(ev){
     CM.showLoading?.(true);
 
     // Borra datos existentes
-    await window.db.from('SUBTAREAS').delete().neq('id', -1);
-    await window.db.from('HISTORIAS').delete().neq('id', -1);
-    await window.db.from('sprints').delete().neq('id', -1);
+    await window.db.from('SUBTAREAS').delete();
+    await window.db.from('HISTORIAS').delete();
+    await window.db.from('sprints').delete();
 
     // Inserta sprint nuevo
     const { error } = await window.db.from('sprints').insert([{
