@@ -39,11 +39,12 @@ async function buildBurndown(){
         datasets: [
           {
             label: 'Estimado',
-            data: ideal,
-            borderColor: 'rgba(0, 102, 255, 0.85)',
-            backgroundColor: 'rgba(0, 102, 255, 0.08)',
-            fill: 'origin',
-            tension: 0.25
+  data: ideal,
+  borderColor: 'rgba(0, 102, 255, 0.85)',
+  backgroundColor: 'rgba(0, 102, 255, 0.08)',
+  fill: 'origin',
+  tension: 0,          // sin curvatura
+  stepped: true        // 👈 línea por escalones (plana en días no laborables)
           },
           {
             label: 'Real',
