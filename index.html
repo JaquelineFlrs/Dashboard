@@ -26,13 +26,19 @@
     <main class="content">
     <!-- DASHBOARD -->
     <section id="view-dashboard" class="view active">
-      <section class="header card" id="header">
-        <div>
-          <h1 id="sprintTitle">Sprint actual</h1>
-          <div class="muted" id="sprintDates">–</div>
-        </div>
-        <div class="days-card"><div class="days-label">Días restantes</div><div class="days-value" id="daysLeft">—</div></div>
-      </section>
+      <section class="hero-header" id="header">
+  <div class="hero-left">
+    <h1 id="sprintTitle">Sprint actual</h1>
+    <div class="hero-dates" id="sprintDates">—</div>
+  </div>
+  <div class="hero-right">
+    <div class="days-badge" aria-label="Días restantes">
+      <span class="days-label">DÍAS RESTANTES</span>
+      <span class="days-number" id="daysLeft">—</span>
+    </div>
+  </div>
+</section>
+
 
       <section class="kpis">  <div class="kpi card">    <div class="kpi-label">Avance</div>    <div class="kpi-value" id="kpiPctSprint">—%</div>  </div>  <div class="kpi card">    <div class="kpi-label">Horas por subtarea</div>    <div class="kpi-value" id="kpiHorasSubtarea">—</div>  </div>  <div class="kpi card">    <div class="kpi-label">Total pendientes</div>    <div class="kpi-value" id="kpiTotalPendientes">—</div>  </div>  <div class="kpi card">    <div class="kpi-label">Horas terminadas</div>    <div class="kpi-value" id="kpiHorasTerminadas">—</div>  </div></section>
 
