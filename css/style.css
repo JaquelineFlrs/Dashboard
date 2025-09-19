@@ -89,7 +89,7 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
 /* Bloques de tabla planos en dashboard */
 #view-dashboard .table-block{background:none !important;border:none !important;box-shadow:none !important;padding:0 !important;margin:12px 0 0 0 !important}
 #view-dashboard .table-block .tbl-wrap{margin-top:8px}
-#view-dashboard .table-block h3{margin:0 0 10px 0;font-weight:800;color:var(--text)}
+#view-dashboard .table-block h3{margin:0 0 10px 0;font-weight:300;color:var(--accent)}
 
 /* ===== Hero Header (blanco & grises) ===== */
 .hero-header{
