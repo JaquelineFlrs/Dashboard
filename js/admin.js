@@ -4,6 +4,7 @@ const CM = window._commons || {};
 const $id = (id)=> document.getElementById(id);
 
 // === Guardar sprint ===
+
 async function guardarSprint(ev){
   ev.preventDefault();
   const nombre   = $id('spNombre').value.trim();
@@ -15,6 +16,30 @@ async function guardarSprint(ev){
     alert('Completa todos los campos del sprint.');
     return;
   }
+
+  if(!confirm('¡ATENCIÓN! Esto TRUNCATE: SUBTAREAS, HISTORIAS y SPRINTS, y creará un nuevo sprint ACTIVO.
+¿Deseas continuar?')) return;
+
+  try{
+    CM.showLoading?.(true);
+
+    // Solo RPC con SECURITY DEFINER (evita problemas de RLS)
+    const { error } = await window.db.rpc('admin_reset_sprint', {
+      p_nombre: nombre,
+      p_inicio: inicio,
+      p_fin:    fin,
+      p_total:  totalHrs
+    });
+    if(error) throw error;
+
+    alert('Sprint reestablecido e insertado como activo (si existe esa columna).');
+  }catch(e){
+    console.error(e);
+    alert('No se pudo guardar el sprint: '+(e.message||e));
+  }finally{
+    CM.showLoading?.(false);
+  }
+}
 
   if(!confirm('¡ATENCIÓN! Esto borrará SUBTAREAS, HISTORIAS y SPRINTS.\n¿Deseas continuar?')) return;
 
