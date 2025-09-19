@@ -160,23 +160,33 @@ loadSubtareas();
 
 })();
 
+
 async function updateTerminada(id, checked){
   try{
+    const idKey = (typeof subKeys !== 'undefined' && subKeys.id) ? subKeys.id : 'ID de Tarea';
+    const fechaKey = (typeof subKeys !== 'undefined' && subKeys.fecha_cierre_marcada) ? subKeys.fecha_cierre_marcada : 'fecha_cierre_marcada';
+
     const today = new Date();
     const y = today.getFullYear();
     const m = String(today.getMonth()+1).padStart(2,'0');
     const d = String(today.getDate()).padStart(2,'0');
     const value = checked ? `${y}-${m}-${d}` : null;
+
     const client = window.db || window.supabase || (typeof sb!=='undefined'?sb:null);
     if(!client){ console.warn('Supabase client not found'); return; }
+
     const { error } = await client
       .from('SUBTAREAS')
-      .update({ [subKeys.fecha_cierre_marcada || 'fecha_cierre_marcada']: value })
-      .eq(subKeys.id, id);
+      .update({ [fechaKey]: value })
+      .eq(idKey, id);
+
     if(error) throw error;
-    const row = (window.subtareasRaw||[]).find(x=> String(x[subKeys.id])===String(id));
-    if(row){ row[subKeys.fecha_cierre_marcada || 'fecha_cierre_marcada'] = value; }
+
+    const raw = window.subtareasRaw || [];
+    const row = raw.find(x=> String(x[idKey])===String(id));
+    if(row){ row[fechaKey] = value; }
   }catch(e){
     console.error(e); alert('No se pudo actualizar Terminada.');
   }
 }
+
