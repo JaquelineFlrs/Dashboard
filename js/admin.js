@@ -70,17 +70,21 @@ async function guardarSprint(ev){
 }
 
 // === Helpers para CSV ===
+
 function parseCsvFile(file){
   return new Promise((resolve, reject)=>{
     if(!file) return resolve([]);
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: h => (h||'').replace(/\ufeff/g,'').trim(),
+      transform: v => (typeof v === 'string' ? v.trim() : v),
       complete: (res)=> resolve(res.data),
       error: reject
     });
   });
 }
+
 function normalizeRows(rows){
   return rows.map(r=>{
     const out = {};
@@ -93,18 +97,34 @@ function normalizeRows(rows){
     return out;
   });
 }
+    return out;
+  });
+}
 
 // === Cargar CSVs ===
+
 async function cargarSubtareas(){
   const file = $id('csvSubtareas').files[0];
   if(!file){ alert('Selecciona un CSV de Subtareas.'); return; }
   try{
     CM.showLoading?.(true);
-    const rows = normalizeRows(await parseCsvFile(file));
-    await window.db.from('SUBTAREASACTUAL').delete().neq('x','y');
-    const { error } = await window.db.from('SUBTAREASACTUAL').insert(rows);
+    const raw = await parseCsvFile(file);
+    const rows = normalizeRows(raw);
+    const valid = [];
+    const skipped = [];
+    for(const r of rows){
+      const idVal = r["ID de Tarea"];
+      if(idVal === null || idVal === undefined || idVal === '') skipped.push(r);
+      else valid.push(r);
+    }
+    if(valid.length === 0){
+      alert('Ninguna fila tiene "ID de Tarea". Revisa los encabezados del CSV.');
+      return;
+    }
+    await window.db.from('SUBTAREASACTUAL').delete();
+    const { error } = await window.db.from('SUBTAREASACTUAL').insert(valid);
     if(error) throw error;
-    $id('uploadMsg').textContent = `Subtareas cargadas: ${rows.length}`;
+    $id('uploadMsg').textContent = `Subtareas cargadas: ${valid.length}. Omitidas por falta de "ID de Tarea": ${skipped.length}`;
   }catch(e){
     console.error(e);
     alert('Error cargando Subtareas: '+(e.message||e));

@@ -38,7 +38,9 @@ async function loadSprintHeader(){
 
   const today = new Date(); today.setHours(0,0,0,0);
   const end = new Date((data.fecha_fin || '') + 'T00:00:00');
-  const diff = Math.max(0, Math.ceil((end - today) / (1000*60*60*24)));
+  const hoyISO = today.toISOString().slice(0,10);
+  const finISO = String(data.fecha_fin || '').slice(0,10);
+  const diff = businessDaysCountISO(hoyISO, finISO, {includeStart:true, includeEnd:true});
   if (chipEl) chipEl.innerHTML = `Días restantes: <b>${diff}</b>`;
   if (daysEl) daysEl.textContent = String(diff);
 }

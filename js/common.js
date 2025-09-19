@@ -130,3 +130,58 @@ window._commons = { VIEWS, TABLES, FN_SYNC_NAME, fmtDate, fmtNum, fmtPct, showLo
 // activa dashboard al cargar
 $$('.menu-item').forEach(btn=> btn.addEventListener('click', ()=> setActive(btn.getAttribute('data-view')) ));
 setActive('view-dashboard');
+
+
+// === FERIADOS Y DÍAS HÁBILES MÉXICO ===
+function mxFixedHolidaysISO(year){
+  return [
+    `${year}-01-01`,
+    `${year}-05-01`,
+    `${year}-09-16`,
+    `${year}-12-25`,
+  ];
+}
+function nthMonday(year, month, n){
+  const d = new Date(Date.UTC(year, month-1, 1));
+  let count = 0;
+  while (d.getUTCMonth() === month-1){
+    if (d.getUTCDay() === 1){
+      count++;
+      if (count === n) return d;
+    }
+    d.setUTCDate(d.getUTCDate()+1);
+  }
+  return null;
+}
+function mxOfficialMondaysISO(year){
+  const f1 = nthMonday(year, 2, 1);
+  const f2 = nthMonday(year, 3, 3);
+  const f3 = nthMonday(year, 11, 3);
+  return [f1,f2,f3].filter(Boolean).map(d=>d.toISOString().slice(0,10));
+}
+function mxHolidaysISO(year){
+  return new Set([...mxFixedHolidaysISO(year), ...mxOfficialMondaysISO(year)]);
+}
+function businessDaysCountISO(startISO, endISO, {includeStart=true, includeEnd=true} = {}){
+  if(!startISO || !endISO) return 0;
+  const start = new Date(`${startISO}T00:00:00Z`);
+  const end   = new Date(`${endISO}T00:00:00Z`);
+  if (end < start) return 0;
+  const years = [];
+  for(let y=start.getUTCFullYear(); y<=end.getUTCFullYear(); y++) years.push(y);
+  const feriados = new Set(years.flatMap(y=>[...mxHolidaysISO(y)]));
+  let count = 0;
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate()+1)){
+    const iso = d.toISOString().slice(0,10);
+    const wd = d.getUTCDay();
+    const isWeekend = (wd===0 || wd===6);
+    const isHoliday = feriados.has(iso);
+    const isStart = (iso === start.toISOString().slice(0,10));
+    const isEnd   = (iso === end.toISOString().slice(0,10));
+    if (isWeekend || isHoliday) continue;
+    if (!includeStart && isStart) continue;
+    if (!includeEnd   && isEnd)   continue;
+    count++;
+  }
+  return count;
+}
