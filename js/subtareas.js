@@ -142,7 +142,7 @@ function updateCounter(){
 
 function renderSubtareas(){
   const head = $sub('theadSubSel'), body = $sub('tbodySubSel');
-  const rows = getFiltered();
+  let rows; try{ rows = getFiltered() || []; }catch(e){ console.error(e); rows = []; }
   head.innerHTML = `<tr>
     <th class="chk">Terminada</th>
     <th class="chk">Mostrar</th>
@@ -151,7 +151,7 @@ function renderSubtareas(){
     ${subKeys.propietario? `<th>${subKeys.propietario}</th>`:''}
     ${subKeys.horas? `<th>${subKeys.horas}</th>`:''}
   </tr>`;
-  if(rows.length===0){ body.innerHTML = '<tr><td colspan="5">Sin datos</td></tr>'; return; }
+  if(rows.length===0){ body.innerHTML = '<tr><td colspan="6">Sin datos</td></tr>'; return; }
   body.innerHTML = rows.map(r=>{
     const checked = normalizeBool(r[subKeys.mostrar]) ? 'checked' : '';
     return `<tr data-id="${escapeHtml(r[subKeys.id])}">
