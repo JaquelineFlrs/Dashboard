@@ -363,7 +363,7 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
 
 .days-badge{
   display:flex; align-items:center; gap:12px;
-  padding:10px 14px; border-radius:999px; background:#fff;
+  padding:10px 14px; border-radius:999px; background:#6b7280;
   border:1px solid var(--muted-2); box-shadow:0 4px 14px rgba(0,0,0,.06);
 }
 .days-badge .days-label{
