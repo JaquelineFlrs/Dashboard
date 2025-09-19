@@ -103,7 +103,7 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
 
 /* Días restantes minimal (solo tipografía) */
 .days-badge{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;background:none;border:none;box-shadow:none;padding:0}
-.days-badge .days-label{font-size:12px;font-weight:600;color:#42474f;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+.days-badge .days-label{font-size:12px;font-weight:600;color:#ee5fa0;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
 .days-badge .days-number{font-size:46px;font-weight:900;color:#111827;line-height:1}
 
 /* ===== Loading ===== */
@@ -131,7 +131,7 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
   color:#374151 !important;
   padding:24px 0;
 }
-#view-dashboard #header #sprintTitle{color:#111827 !important;font-size:64px !important;font-weight:900 !important}
-#view-dashboard #header #sprintDates{color:#6b7280 !important;font-size:16px !important}
+#view-dashboard #header #sprintTitle{color:#111827 !important;font-size:50px !important;font-weight:500 !important}
+#view-dashboard #header #sprintDates{color:#ee5fa0 !important;font-size:16px !important}
 #view-dashboard #header .days-card{color:#374151 !important}
 #view-dashboard #header .days-value{color:#111827 !important;font-size:44px !important;font-weight:800 !important}
