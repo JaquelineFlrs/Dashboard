@@ -1,18 +1,21 @@
+(function(){
+'use strict';
+const CM = window._commons;
 // burndown.js — pestaña aparte
-const { TABLES, showLoading, businessDays, buildIdealBurndown } = window._commons;
+
 let bdChart = null;
 
 async function buildBurndown(){
-  showLoading(true);
+  CM.showLoading(true);
   try{
-    const { data, error } = await window.db.from(TABLES.SPRINTS).select('fecha_inicio, fecha_fin, total_hrs').eq('activo',true).limit(1).maybeSingle();
+    const { data, error } = await window.db.from(CM.TABLES.SPRINTS).select('fecha_inicio, fecha_fin, total_hrs').eq('activo',true).limit(1).maybeSingle();
     if(error || !data){ console.warn('Sin sprint activo para burndown.'); return; }
     const totalHrs = Number(data.total_hrs || 0);
     const excludeWeekends = document.getElementById('bdExcludeWeekends').checked;
     const excludeHolidays = document.getElementById('bdExcludeMxHolidays').checked;
 
-    const days = businessDays(data.fecha_inicio, data.fecha_fin, {excludeWeekends, excludeHolidays});
-    const series = buildIdealBurndown(totalHrs, days);
+    const days = CM.businessDays(data.fecha_inicio, data.fecha_fin, {excludeWeekends, excludeHolidays});
+    const series = CM.buildIdealBurndown(totalHrs, days);
 
     const ctx = document.getElementById('burndownCanvas').getContext('2d');
     if(bdChart){ bdChart.destroy(); }
@@ -29,7 +32,7 @@ async function buildBurndown(){
     const perDay = days.length ? (totalHrs / days.length) : 0;
     body.innerHTML = days.map(d=> `<tr><td>${d}</td><td>${perDay.toFixed(2)}</td></tr>`).join('');
   } finally {
-    showLoading(false);
+    CM.showLoading(false);
   }
 }
 
@@ -38,3 +41,5 @@ document.getElementById('btnRecalcBurndown').addEventListener('click', buildBurn
 window._hooks['view-burndown'] = buildBurndown;
 // carga inicial si se abre directo
 buildBurndown();
+
+})();

@@ -1,5 +1,8 @@
+(function(){
+'use strict';
+const CM = window._commons;
 // subtareas.js — tabla de selección mostrar/no mostrar
-const { TABLES, showLoading } = window._commons;
+
 
 const CANDIDATES = {
   ID: ['id','ID','ID de Subtarea','ID de subtarea','ID de Tarea','ID_de_Tarea','ID_subtarea','id_subtarea'],
@@ -18,7 +21,7 @@ function normalizeBool(v){ return (v===true || v==='true' || v===1 || v==='1'); 
 function escapeHtml(x){ if(x==null) return ''; return String(x).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
 async function loadSubtareas(){
-  const { data, error } = await window.db.from(TABLES.SUBTAREAS).select('*').limit(5000);
+  const { data, error } = await window.db.from(CM.TABLES.SUBTAREAS).select('*').limit(5000);
   if(error){ console.error('SUBTAREAS', error); return; }
   subtareasRaw = data || [];
   const sample = subtareasRaw.find(r=>r) || {};
@@ -72,7 +75,7 @@ function renderSubtareas(){
       if(!id) return;
       try{
         const payload={}; payload[subKeys.mostrar]=ev.target.checked;
-        const { error } = await window.db.from(TABLES.SUBTAREAS).update(payload).eq(subKeys.id, id);
+        const { error } = await window.db.from(CM.TABLES.SUBTAREAS).update(payload).eq(subKeys.id, id);
         if(error) throw error;
         const row = subtareasRaw.find(x=> String(x[subKeys.id])===String(id));
         if(row) row[subKeys.mostrar]=ev.target.checked;
@@ -97,13 +100,13 @@ $sub('btnUnmarkAll').addEventListener('click', async ()=>{
 });
 
 async function bulkSetMostrar(value, ids){
-  showLoading(true);
+  CM.showLoading(true);
   const chunk=500;
   try{
     for(let i=0;i<ids.length;i+=chunk){
       const slice = ids.slice(i,i+chunk);
       const payload={ mostrar:value };
-      const { error } = await window.db.from(TABLES.SUBTAREAS).update(payload).in('id', slice);
+      const { error } = await window.db.from(CM.TABLES.SUBTAREAS).update(payload).in('id', slice);
       if(error) throw error;
       // update local
       subtareasRaw.forEach(r=>{ if(slice.includes(String(r['id']))) r['mostrar']=value; });
@@ -111,9 +114,11 @@ async function bulkSetMostrar(value, ids){
     renderSubtareas();
   }catch(e){
     console.error(e); alert('No se pudo aplicar el cambio masivo.');
-  }finally{ showLoading(false); }
+  }finally{ CM.showLoading(false); }
 }
 
 // hook
 window._hooks['view-subtareas'] = loadSubtareas;
 loadSubtareas();
+
+})();

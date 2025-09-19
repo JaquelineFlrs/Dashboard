@@ -1,5 +1,8 @@
+(function(){
+'use strict';
+const CM = window._commons;
 // admin.js — crear sprint y cargas CSV
-const { TABLES, FN_SYNC_NAME, showLoading } = window._commons;
+
 const $a = (id)=> document.getElementById(id);
 
 async function guardarSprint(ev){
@@ -15,14 +18,14 @@ async function guardarSprint(ev){
   if(!confirm(`Vas a BORRAR SUBTAREAS, HISTORIAS y SPRINTS, y crear el sprint "${nombre}". ¿Seguro/a?`)){
     return;
   }
-  showLoading(true);
+  CM.showLoading(true);
   try{
-    await window.db.from(TABLES.SUBTAREAS).delete().neq('id', -1);
-    await window.db.from(TABLES.HISTORIAS).delete().neq('id', -1);
-    await window.db.from(TABLES.SPRINTS).delete().neq('id', -1);
+    await window.db.from(CM.TABLES.SUBTAREAS).delete().neq('id', -1);
+    await window.db.from(CM.TABLES.HISTORIAS).delete().neq('id', -1);
+    await window.db.from(CM.TABLES.SPRINTS).delete().neq('id', -1);
 
     const payload = { nombre, fecha_inicio: inicio, fecha_fin: fin, activo: true, total_hrs: totalHrs };
-    const { error:insErr } = await window.db.from(TABLES.SPRINTS).insert(payload);
+    const { error:insErr } = await window.db.from(CM.TABLES.SPRINTS).insert(payload);
     if(insErr){ throw insErr; }
 
     alert('Sprint guardado. Ahora puedes cargar CSV y sincronizar.');
@@ -30,7 +33,7 @@ async function guardarSprint(ev){
     console.error(e);
     alert('No se pudo guardar el sprint: '+(e?.message||e));
   }finally{
-    showLoading(false);
+    CM.showLoading(false);
   }
 }
 
@@ -41,7 +44,7 @@ async function cargarCsvYSync(){
     alert('Selecciona ambos CSV (Subtareas e Historias).');
     return;
   }
-  showLoading(true);
+  CM.showLoading(true);
   $a('uploadMsg').textContent = 'Procesando CSV…';
   try{
     const parseCsv = (file)=> new Promise((resolve,reject)=>{
@@ -59,10 +62,10 @@ async function cargarCsvYSync(){
       }
     };
 
-    await upsertBatched(TABLES.SUBTAREASACTUAL, rowsSub);
-    await upsertBatched(TABLES.HISTORIASACTUAL, rowsHis);
+    await upsertBatched(CM.TABLES.SUBTAREASACTUAL, rowsSub);
+    await upsertBatched(CM.TABLES.HISTORIASACTUAL, rowsHis);
 
-    const { error:rpcErr } = await window.db.rpc(FN_SYNC_NAME);
+    const { error:rpcErr } = await window.db.rpc(CM.FN_SYNC_NAME);
     if(rpcErr) throw rpcErr;
 
     $a('uploadMsg').textContent = `Listo: ${rowsSub.length} subtareas + ${rowsHis.length} historias. Datos sincronizados.`;
@@ -72,7 +75,7 @@ async function cargarCsvYSync(){
     alert('Error durante la carga/sync: '+(e?.message||e));
     $a('uploadMsg').textContent = 'Ocurrió un error.';
   }finally{
-    showLoading(false);
+    CM.showLoading(false);
   }
 }
 
@@ -80,3 +83,5 @@ document.getElementById('frmSprint').addEventListener('submit', guardarSprint);
 document.getElementById('btnCargarTodo').addEventListener('click', cargarCsvYSync);
 // hook vacío por si luego quieres algo al entrar a admin
 window._hooks['view-admin'] = ()=>{};
+
+})();

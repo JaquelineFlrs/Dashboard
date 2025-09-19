@@ -1,6 +1,6 @@
 // common.js — configuración, helpers, navegación horizontal, loading y utilidades
-const SUPABASE_URL = 'https://hvdfzdkugkukwoctnpoa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2ZGZ6ZGt1Z2t1a3dvY3RucG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MzM4ODgsImV4cCI6MjA3MzMwOTg4OH0.8RSq7GAN7Oh9mJOCP9lUndJyLIt';
+const SUPABASE_URL = window.CONFIG?.SUPABASE_URL;
+const SUPABASE_ANON_KEY = window.CONFIG?.SUPABASE_ANON_KEY;
 
 const VIEWS = {
   TOTALES_SPRINT:'vw_totales_sprint',
@@ -18,15 +18,34 @@ const FN_SYNC_NAME = 'fn_sync_simple'; // ajusta si tu función tiene otro nombr
 
 const { createClient } = supabase;
 // instancia global única
-window.db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if(!SUPABASE_URL || !SUPABASE_ANON_KEY){
+  showAlert('Falta configurar SUPABASE_URL o SUPABASE_ANON_KEY en js/config.js');
+}
+
+try{ window.db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }catch(e){ showAlert('Error creando cliente de Supabase. Revisa tu URL y Key.'); console.error(e); }
 
 const $ = (sel)=> document.querySelector(sel);
 const $$ = (sel)=> Array.from(document.querySelectorAll(sel));
+
+// Alert helpers
+function showAlert(msg){
+  const box = document.getElementById('alert');
+  if(!box) return;
+  box.style.display = 'block';
+  box.innerText = msg;
+}
+function hideAlert(){
+  const box = document.getElementById('alert');
+  if(!box) return;
+  box.style.display = 'none';
+  box.innerText = '';
+}
+
 const showLoading = (on)=>{ $('#loading').style.visibility = on ? 'visible' : 'hidden'; };
 
 // Ping conexión (consola)
-window.db.from('sprints').select('count', { count: 'exact', head: true }).then(({error})=>{
-  if(error){ console.warn('⚠️ Supabase no respondió. Revisa URL/Key y RLS.', error.message); }
+window.db.from('sprints').select('count', { count: 'exact', head: true }).then(({error,status})=>{
+  if(error){ console.warn('⚠️ Supabase no respondió. Status:', status, ' Detalle:', error.message); showAlert('No se pudo leer la tabla "sprints". Verifica URL/Key, CORS y RLS. Status '+status); }
   else { console.log('✅ Conectado a Supabase'); }
 });
 

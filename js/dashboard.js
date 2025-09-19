@@ -1,8 +1,11 @@
+(function(){
+'use strict';
+const CM = window._commons;
 // dashboard.js — header, KPIs y tablas del dashboard
-const { VIEWS, TABLES, fmtDate, fmtNum, fmtPct, showLoading } = window._commons;
+
 
 async function loadSprintHeader(){
-  const { data, error } = await window.db.from(TABLES.SPRINTS).select('nombre, fecha_inicio, fecha_fin').eq('activo',true).limit(1).maybeSingle();
+  const { data, error } = await window.db.from(CM.TABLES.SPRINTS).select('nombre, fecha_inicio, fecha_fin').eq('activo',true).limit(1).maybeSingle();
   if(error){ console.error(error); return; }
   if(!data){ return; }
   document.getElementById('sprintTitle').textContent = data.nombre || 'Sprint activo';
@@ -14,7 +17,7 @@ async function loadSprintHeader(){
 }
 
 async function loadKpis(){
-  const { data, error } = await window.db.from(VIEWS.TOTALES_SPRINT).select('*').limit(1).maybeSingle();
+  const { data, error } = await window.db.from(CM.VIEWS.TOTALES_SPRINT).select('*').limit(1).maybeSingle();
   if(error){ console.error(error); return; }
   if(!data) return;
   document.getElementById('kpiAvance').textContent = fmtPct(data.avance_pct ?? data.pct_avance ?? 0);
@@ -36,8 +39,8 @@ async function refreshDashboard(){
     showLoading(true);
     await loadSprintHeader();
     await loadKpis();
-    await loadTabla(VIEWS.AVANCE_LISTA, 'theadLista', 'tbodyLista');
-    await loadTabla(VIEWS.TOTALES_PROP, 'theadProp', 'tbodyProp');
+    await loadTabla(CM.VIEWS.AVANCE_LISTA, 'theadLista', 'tbodyLista');
+    await loadTabla(CM.VIEWS.TOTALES_PROP, 'theadProp', 'tbodyProp');
   } finally {
     showLoading(false);
   }
@@ -47,3 +50,5 @@ document.getElementById('btnRefreshDashboard').addEventListener('click', refresh
 refreshDashboard();
 // hook
 window._hooks['view-dashboard'] = refreshDashboard;
+
+})();
