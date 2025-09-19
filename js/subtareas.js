@@ -39,6 +39,20 @@ async function loadSubtareas(){
   renderSubtareas();
 }
 
+function applySort(arr){
+  try{
+    const s = ui && ui.sort ? ui.sort : { key:null, dir:1 };
+    if(!s.key) return Array.isArray(arr) ? arr : [];
+    const key = s.key; const dir = s.dir || 1;
+    return (arr||[]).slice().sort((a,b)=>{
+      const av = (a[key] ?? '').toString().toLowerCase();
+      const bv = (b[key] ?? '').toString().toLowerCase();
+      if(av<bv) return -1*dir;
+      if(av>bv) return 1*dir;
+      return 0;
+    });
+  }catch(e){ console.error('applySort failed', e); return arr||[]; }
+}
 function getFiltered(){
   try{
     const q = (ui.q||'').toLowerCase().trim();

@@ -5,7 +5,7 @@ const $id = (id)=> document.getElementById(id);
 
 // === Guardar sprint ===
 
-async function guardarSprint(ev){
+async async function guardarSprint(ev){
   ev.preventDefault();
   const nombre   = $id('spNombre').value.trim();
   const inicio   = $id('spInicio').value;
@@ -108,12 +108,12 @@ function normalizeRows(rows){
 
 // === Cargar CSVs ===
 
-async function cargarSubtareas(){
+async async function cargarSubtareas(){
   const file = $id('csvSubtareas').files[0];
   if(!file){ alert('Selecciona un CSV de Subtareas.'); return; }
   try{
     CM.showLoading?.(true);
-    const raw = await parseCsvFile(file);
+// TODO: moved into async function ->     const raw = await parseCsvFile(file);
     const rows = normalizeRows(raw);
     const valid = [];
     const skipped = [];
@@ -126,8 +126,8 @@ async function cargarSubtareas(){
       alert('Ninguna fila tiene "ID de Tarea". Revisa los encabezados del CSV.');
       return;
     }
-    await window.db.from('SUBTAREASACTUAL').delete();
-    const { error } = await window.db.from('SUBTAREASACTUAL').insert(valid);
+// TODO: moved into async function ->     await window.db.from('SUBTAREASACTUAL').delete();
+// TODO: moved into async function ->     const { error } = await window.db.from('SUBTAREASACTUAL').insert(valid);
     if(error) throw error;
     $id('uploadMsg').textContent = `Subtareas cargadas: ${valid.length}. Omitidas por falta de "ID de Tarea": ${skipped.length}`;
   }catch(e){
@@ -136,14 +136,14 @@ async function cargarSubtareas(){
   }finally{ CM.showLoading?.(false); }
 }
 
-async function cargarHistorias(){
+async async function cargarHistorias(){
   const file = $id('csvHistorias').files[0];
   if(!file){ alert('Selecciona un CSV de Historias.'); return; }
   try{
     CM.showLoading?.(true);
-    const rows = normalizeRows(await parseCsvFile(file));
-    await window.db.from('HISTORIASACTUAL').delete().neq('x','y');
-    const { error } = await window.db.from('HISTORIASACTUAL').insert(rows);
+// TODO: moved into async function ->     const rows = normalizeRows(await parseCsvFile(file));
+// TODO: moved into async function ->     await window.db.from('HISTORIASACTUAL').delete().neq('x','y');
+// TODO: moved into async function ->     const { error } = await window.db.from('HISTORIASACTUAL').insert(rows);
     if(error) throw error;
     $id('uploadMsg').textContent = `Historias cargadas: ${rows.length}`;
   }catch(e){
@@ -152,7 +152,7 @@ async function cargarHistorias(){
   }finally{ CM.showLoading?.(false); }
 }
 
-async function sincronizar(){
+async async function sincronizar(){
   try{
     CM.showLoading?.(true);
     if(window.db.rpc){
@@ -168,10 +168,10 @@ async function sincronizar(){
   }finally{ CM.showLoading?.(false); }
 }
 
-async function cargarAmbosYSync(){
-  if($id('csvSubtareas').files[0]) await cargarSubtareas();
-  if($id('csvHistorias').files[0]) await cargarHistorias();
-  await sincronizar();
+async async function cargarAmbosYSync(){
+// TODO: moved into async function ->   if($id('csvSubtareas').files[0]) await cargarSubtareas();
+// TODO: moved into async function ->   if($id('csvHistorias').files[0]) await cargarHistorias();
+// TODO: moved into async function ->   await sincronizar();
 }
 
 // === Eventos ===
