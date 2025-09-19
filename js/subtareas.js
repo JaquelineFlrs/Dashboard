@@ -160,11 +160,10 @@ loadSubtareas();
 
 })();
 
-
 async function updateTerminada(id, checked){
   try{
     const idKey = (typeof subKeys !== 'undefined' && subKeys.id) ? subKeys.id : 'ID de Tarea';
-    const fechaKey = (typeof subKeys !== 'undefined' && subKeys.fecha_cierre_marcada) ? subKeys.fecha_cierre_marcada : 'fecha_cierre_marcada';
+    const fechaKey = "Fecha de terminación";  // usamos la columna real
 
     const today = new Date();
     const y = today.getFullYear();
@@ -182,11 +181,14 @@ async function updateTerminada(id, checked){
 
     if(error) throw error;
 
+    // refresca en memoria
     const raw = window.subtareasRaw || [];
-    const row = raw.find(x=> String(x[idKey])===String(id));
-    if(row){ row[fechaKey] = value; }
+    const row = raw.find(x => String(x[idKey]) === String(id));
+    if(row) row[fechaKey] = value;
   }catch(e){
-    console.error(e); alert('No se pudo actualizar Terminada.');
+    console.error(e);
+    alert('No se pudo actualizar Terminada.');
   }
 }
+
 
