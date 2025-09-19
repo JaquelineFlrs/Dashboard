@@ -585,3 +585,42 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   font-weight:900;
   line-height:1.1;
 }
+
+/* === Overrides finales: días restantes y KPIs === */
+.days-badge .days-label{
+  font-size:13px;
+  font-weight:500;
+  color:#000000 !important;   /* negro */
+  margin-bottom:2px;
+  text-transform:none;
+  letter-spacing:.02em;
+}
+.days-badge .days-number{
+  font-size:42px;
+  font-weight:600;
+  color:#000000 !important;   /* negro */
+  line-height:1.2;
+}
+.kpi{
+  background:#ffffff;
+  border:1px solid rgba(238,95,160,.25);
+  box-shadow:0 6px 14px rgba(238,95,160,.12);
+  border-radius:14px;
+  padding:28px 20px;
+  text-align:center;
+}
+.kpi-label{
+  color:#374151 !important;
+  font-size:17px;
+  font-weight:400; /* más ligero */
+  margin-bottom:6px;
+  letter-spacing:.01em;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+.kpi-value{
+  color:#000000 !important;
+  font-size:44px;
+  font-weight:500; /* más sencillo */
+  line-height:1.2;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
