@@ -1,5 +1,5 @@
 // subtareas.js — tabla de selección mostrar/no mostrar
-const { db, TABLES, showLoading } = window._commons;
+const { TABLES, showLoading } = window._commons;
 
 const CANDIDATES = {
   ID: ['id','ID','ID de Subtarea','ID de subtarea','ID de Tarea','ID_de_Tarea','ID_subtarea','id_subtarea'],
@@ -18,7 +18,7 @@ function normalizeBool(v){ return (v===true || v==='true' || v===1 || v==='1'); 
 function escapeHtml(x){ if(x==null) return ''; return String(x).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
 async function loadSubtareas(){
-  const { data, error } = await db.from(TABLES.SUBTAREAS).select('*').limit(5000);
+  const { data, error } = await window.db.from(TABLES.SUBTAREAS).select('*').limit(5000);
   if(error){ console.error('SUBTAREAS', error); return; }
   subtareasRaw = data || [];
   const sample = subtareasRaw.find(r=>r) || {};
@@ -72,7 +72,7 @@ function renderSubtareas(){
       if(!id) return;
       try{
         const payload={}; payload[subKeys.mostrar]=ev.target.checked;
-        const { error } = await db.from(TABLES.SUBTAREAS).update(payload).eq(subKeys.id, id);
+        const { error } = await window.db.from(TABLES.SUBTAREAS).update(payload).eq(subKeys.id, id);
         if(error) throw error;
         const row = subtareasRaw.find(x=> String(x[subKeys.id])===String(id));
         if(row) row[subKeys.mostrar]=ev.target.checked;
@@ -83,18 +83,30 @@ function renderSubtareas(){
   });
 }
 
-async function bulkSetMostrar(value){
+$sub('subSearch').addEventListener('input', renderSubtareas);
+$sub('subOnlyShown').addEventListener('change', renderSubtareas);
+$sub('btnMarkAll').addEventListener('click', async ()=>{
   const ids = Array.from(document.querySelectorAll('#tbodySubSel tr[data-id]')).map(tr=> tr.getAttribute('data-id'));
   if(!ids.length) return;
+  await bulkSetMostrar(true, ids);
+});
+$sub('btnUnmarkAll').addEventListener('click', async ()=>{
+  const ids = Array.from(document.querySelectorAll('#tbodySubSel tr[data-id]')).map(tr=> tr.getAttribute('data-id'));
+  if(!ids.length) return;
+  await bulkSetMostrar(false, ids);
+});
+
+async function bulkSetMostrar(value, ids){
   showLoading(true);
   const chunk=500;
   try{
     for(let i=0;i<ids.length;i+=chunk){
       const slice = ids.slice(i,i+chunk);
-      const payload={}; payload[subKeys.mostrar]=value;
-      const { error } = await db.from(TABLES.SUBTAREAS).update(payload).in(subKeys.id, slice);
+      const payload={ mostrar:value };
+      const { error } = await window.db.from(TABLES.SUBTAREAS).update(payload).in('id', slice);
       if(error) throw error;
-      subtareasRaw.forEach(r=>{ if(slice.includes(String(r[subKeys.id]))) r[subKeys.mostrar]=value; });
+      // update local
+      subtareasRaw.forEach(r=>{ if(slice.includes(String(r['id']))) r['mostrar']=value; });
     }
     renderSubtareas();
   }catch(e){
@@ -102,9 +114,6 @@ async function bulkSetMostrar(value){
   }finally{ showLoading(false); }
 }
 
-$sub('subSearch').addEventListener('input', renderSubtareas);
-$sub('subOnlyShown').addEventListener('change', renderSubtareas);
-$sub('btnMarkAll').addEventListener('click', ()=> bulkSetMostrar(true));
-$sub('btnUnmarkAll').addEventListener('click', ()=> bulkSetMostrar(false));
-
+// hook
+window._hooks['view-subtareas'] = loadSubtareas;
 loadSubtareas();

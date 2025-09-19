@@ -1,4 +1,4 @@
-// common.js — configuración, helpers, navegación, loading, festivos y burndown
+// common.js — configuración, helpers, navegación horizontal, loading y utilidades
 const SUPABASE_URL = 'https://hvdfzdkugkukwoctnpoa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2ZGZ6ZGt1Z2t1a3dvY3RucG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MzM4ODgsImV4cCI6MjA3MzMwOTg4OH0.8RSq7GAN7Oh9mJOCP9lUndJyLIt';
 
@@ -17,29 +17,38 @@ const TABLES = {
 const FN_SYNC_NAME = 'fn_sync_simple'; // ajusta si tu función tiene otro nombre
 
 const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// instancia global única
+window.db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const $ = (sel)=> document.querySelector(sel);
 const $$ = (sel)=> Array.from(document.querySelectorAll(sel));
 const showLoading = (on)=>{ $('#loading').style.visibility = on ? 'visible' : 'hidden'; };
 
-// Navegación entre vistas
-$$('.menu-item').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    $$('.menu-item').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const view = btn.getAttribute('data-view');
-    $$('.view').forEach(v=>v.classList.remove('active'));
-    document.getElementById(view).classList.add('active');
-  });
+// Ping conexión (consola)
+window.db.from('sprints').select('count', { count: 'exact', head: true }).then(({error})=>{
+  if(error){ console.warn('⚠️ Supabase no respondió. Revisa URL/Key y RLS.', error.message); }
+  else { console.log('✅ Conectado a Supabase'); }
 });
+
+// Router horizontal + hooks por vista
+const hooks = {}; // cada vista puede registrar su "refresh" con window._hooks['view-xxx']=fn
+window._hooks = hooks;
+
+function setActive(viewId){
+  $$('.menu-item').forEach(b=> b.classList.remove('active'));
+  $(`.menu-item[data-view="${viewId}"]`)?.classList.add('active');
+  $$('.view').forEach(v=> v.classList.remove('active'));
+  document.getElementById(viewId)?.classList.add('active');
+  if(hooks[viewId]) hooks[viewId]();
+}
+window.setActive = setActive;
 
 // Formatos
 const fmtDate = (d)=> new Date(d+'T00:00:00').toLocaleDateString('es-MX',{year:'numeric',month:'short',day:'2-digit'});
 const fmtNum = (n)=> (n==null||isNaN(n))? '—' : Number(n).toLocaleString('es-MX');
 const fmtPct = (n)=> (n==null||isNaN(n))? '—%' : (Number(n).toFixed(1)+'%');
 
-// Festivos México (ley federal del trabajo, con lunes cívicos)
+// Festivos México
 function mxHolidays(year){
   const d = (m,day)=> new Date(Date.UTC(year,m-1,day));
   const nthMonday = (month,n)=>{
@@ -48,20 +57,12 @@ function mxHolidays(year){
     date.setUTCDate(date.getUTCDate()+(n-1)*7);
     return date;
   };
-  const thirdMonday = (month)=> nthMonday(month,3);
-  const firstMonday = (month)=> nthMonday(month,1);
-
+  const thirdMonday = (m)=> nthMonday(m,3);
+  const firstMonday = (m)=> nthMonday(m,1);
   return [
-    d(1,1),                       // Año Nuevo
-    firstMonday(2),               // Constitución (primer lunes de febrero)
-    thirdMonday(3),               // Natalicio de Benito Juárez (tercer lunes de marzo)
-    d(5,1),                       // Día del Trabajo
-    d(9,16),                      // Independencia
-    thirdMonday(11),              // Revolución (tercer lunes de noviembre)
-    d(12,25),                     // Navidad
+    d(1,1), firstMonday(2), thirdMonday(3), d(5,1), d(9,16), thirdMonday(11), d(12,25)
   ].map(x=> x.toISOString().slice(0,10));
 }
-
 function businessDays(startStr,endStr,{excludeWeekends=true, excludeHolidays=true}={}){
   const start = new Date(startStr+'T00:00:00Z');
   const end = new Date(endStr+'T00:00:00Z');
@@ -76,15 +77,12 @@ function businessDays(startStr,endStr,{excludeWeekends=true, excludeHolidays=tru
   }
   return days;
 }
-
-// Burndown ideal -> labels + remaining array
 function buildIdealBurndown(totalHours, days){
   if(!days.length) return {labels:[], data:[]};
   const step = totalHours / days.length;
   const data = [];
   for(let i=0;i<days.length;i++){
-    const remaining = Math.max(0, totalHours - step*i);
-    data.push(Number(remaining.toFixed(2)));
+    data.push(Number(Math.max(0, totalHours - step*i).toFixed(2)));
   }
   return { labels: days.map(d=> d.slice(5)), data };
 }
@@ -102,5 +100,7 @@ function renderTable(elThead, elTbody, rows){
   elTbody.innerHTML = rows.map(r=>'<tr>'+cols.map(c=>`<td>${(r[c]??'')}</td>`).join('')+'</tr>').join('');
 }
 
-// Export commons needed elsewhere
-window._commons = { db, VIEWS, TABLES, FN_SYNC_NAME, fmtDate, fmtNum, fmtPct, showLoading, businessDays, buildIdealBurndown };
+window._commons = { VIEWS, TABLES, FN_SYNC_NAME, fmtDate, fmtNum, fmtPct, showLoading, businessDays, buildIdealBurndown };
+// activa dashboard al cargar
+$$('.menu-item').forEach(btn=> btn.addEventListener('click', ()=> setActive(btn.getAttribute('data-view')) ));
+setActive('view-dashboard');
