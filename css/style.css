@@ -156,3 +156,63 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   color: #e91e63;
   line-height: 1.2;
 }
+
+/* ===== Estilo tipo screenshot ===== */
+
+/* Header sprint: barra rosa fuerte con tipografía blanca y chip de días a la derecha */
+#view-dashboard #header.card{
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(238,95,160,.35);
+  padding: 28px 24px;
+  border-radius: 12px 12px 0 0;
+}
+#view-dashboard #header .muted{ color: #ffe6f1; }
+#sprintTitle{ font-size: 56px; line-height: 1.1; margin: 0 0 6px 0; color:#fff;}
+#sprintDates{ font-size: 14px; }
+#chipDias{ 
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25);
+  color:#fff;
+}
+#view-dashboard #header .days-card{
+  background: transparent;
+  border: none;
+  color: #fff;
+}
+#view-dashboard #header .days-label{ color:#ffe6f1; }
+#view-dashboard #header .days-value{ font-size: 44px; color:#fff; }
+
+/* KPIs: bloques rosa claro, grandes y minimal */
+.kpis { grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 24px 0; }
+.kpi {
+  background: #f3a9c6; /* rosa suave */
+  border: none;
+  border-radius: 14px;
+  color: #fff;
+  padding: 22px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25),
+              0 4px 10px rgba(238,95,160,.25);
+}
+.kpi-label { font-size: 16px; font-weight: 600; opacity:.9; text-transform:none; }
+.kpi-value { font-size: 42px; font-weight: 800; color:#fff; }
+
+/* Tablas: encabezado rosa, filas zebra, bordes sutiles */
+.tbl-wrap table thead th{
+  background: var(--accent);
+  color:#fff;
+  font-weight:700;
+  text-transform:none;
+  letter-spacing:.2px;
+  border-bottom: 0;
+}
+.tbl-wrap table tbody td, 
+.tbl-wrap table thead th{
+  border-bottom: 1px solid rgba(238,95,160,.25);
+}
+.tbl-wrap table tbody tr:nth-child(even){
+  background: #fff7fb; /* zebra rosado muy claro */
+}
+/* Paginação/summary */
+.table-footer, .pager, .small-bold{ color: var(--text-2); }
