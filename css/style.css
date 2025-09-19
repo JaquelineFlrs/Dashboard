@@ -295,3 +295,52 @@ input[type="text"],input[type="date"],input[type="number"]{width:100%;padding:10
   font-weight: 800;
   color: var(--text);
 }
+
+/* --- KPI adjustments: bigger titles, all text white --- */
+.kpi {
+  background: var(--accent);
+  color: #fff !important;
+}
+.kpi-label {
+  font-size: 22px !important;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #fff !important;
+}
+.kpi-value {
+  font-size: 56px !important;
+  font-weight: 900;
+  color: #fff !important;
+}
+
+/* --- KPIs: textos blancos y más grandes --- */
+.kpi { color:#fff; }
+.kpi-label { color:#fff !important; font-size:22px !important; font-weight:700 !important; letter-spacing:.3px; }
+.kpi-value { color:#fff !important; font-size:56px !important; font-weight:900 !important; line-height:1.05; }
+
+#view-dashboard #header.card{ background:#f3f4f6 !important; color:var(--text) !important; }
+
+/* --- Header blanco con letras grises --- */
+#view-dashboard #header.card{
+  background:#fff !important;
+  border:none !important;
+  box-shadow:none !important;
+  color:#374151 !important; /* gris oscuro */
+}
+#view-dashboard #header #sprintTitle{
+  color:#111827 !important; /* casi negro */
+  font-size:64px !important;
+  font-weight:900 !important;
+}
+#view-dashboard #header #sprintDates{
+  color:#6b7280 !important; /* gris medio */
+  font-size:16px !important;
+}
+#view-dashboard #header .days-card{
+  color:#374151 !important;
+}
+#view-dashboard #header .days-value{
+  color:#111827 !important;
+  font-size:44px !important;
+  font-weight:800 !important;
+}
