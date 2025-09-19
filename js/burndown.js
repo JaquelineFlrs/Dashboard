@@ -1,61 +1,35 @@
 (function(){
 'use strict';
 const CM = window._commons;
-// burndown.js — pestaña aparte
+const db = CM.db;
 
-let bdChart = null;
+async function recalc(){
+  const excludeW = document.getElementById('bdExcludeWeekends')?.checked ?? true;
+  const excludeH = document.getElementById('bdExcludeMxHolidays')?.checked ?? true; // placeholder (no holidays calc here)
+  const { data: sprint } = await db.from(CM.TABLES.SPRINTS).select('fecha_inicio, fecha_fin, total_hrs').eq('activo', true).limit(1).single();
+  if(!sprint){ return; }
+  const start = new Date(sprint.fecha_inicio);
+  const end = new Date(sprint.fecha_fin);
+  const days = CM.businessDays(start, end, excludeW);
+  const series = CM.buildIdealBurndown(Number(sprint.total_hrs||0), days.length);
 
-async function buildBurndown(){
-  CM.showLoading(true);
-  try{
-    let { data, error } = await window.db.from(CM.TABLES.SPRINTS)
-  .select('fecha_inicio, fecha_fin, total_hrs')
-  .or('activo.eq.true,activo.eq.1')
-  .limit(1)
-  .maybeSingle();
-if((error || !data)){
-  const today = new Date().toISOString().slice(0,10);
-  const q = await window.db.from(CM.TABLES.SPRINTS)
-    .select('fecha_inicio, fecha_fin, total_hrs')
-    .lte('fecha_inicio', today)
-    .gte('fecha_fin', today)
-    .order('fecha_inicio', { ascending:false })
-    .limit(1)
-    .maybeSingle();
-  data = q.data; error = q.error;
+  // render tabla
+  const rows = days.map((d,i)=> ({ fecha: CM.fmtDate(d), horas: series[i] }));
+  CM.renderTable(document.getElementById('theadBD'), document.getElementById('tbodyBD'), rows);
+
+  // render chart
+  const ctx = document.getElementById('burndownCanvas')?.getContext('2d');
+  if(!ctx) return;
+  if(window._bdChart){ window._bdChart.destroy(); }
+  window._bdChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: rows.map(r=>r.fecha), datasets: [{ label: 'Ideal', data: rows.map(r=>r.horas), tension: .25 }] },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
 }
 
-    if(error || !data){ console.warn('Sin sprint activo para burndown.'); return; }
-    const totalHrs = Number(data.total_hrs || 0);
-    const excludeWeekends = document.getElementById('bdExcludeWeekends').checked;
-    const excludeHolidays = document.getElementById('bdExcludeMxHolidays').checked;
-
-    const days = CM.businessDays(data.fecha_inicio, data.fecha_fin, {excludeWeekends, excludeHolidays});
-    const series = CM.buildIdealBurndown(totalHrs, days);
-
-    const ctx = document.getElementById('burndownCanvas').getContext('2d');
-    if(bdChart){ bdChart.destroy(); }
-    bdChart = new Chart(ctx, {
-      type:'line',
-      data:{ labels: series.labels, datasets:[{ label:'Ideal', data: series.data, tension:0.2 }]},
-      options:{ responsive:true, plugins:{legend:{display:true}}, scales:{ y:{ beginAtZero:true }} }
-    });
-
-    // Tabla detalle (plan por día = total/días)
-    const head = document.getElementById('theadBD');
-    const body = document.getElementById('tbodyBD');
-    head.innerHTML = '<tr><th>Fecha</th><th>Horas plan por día</th></tr>';
-    const perDay = days.length ? (totalHrs / days.length) : 0;
-    body.innerHTML = days.map(d=> `<tr><td>${d}</td><td>${perDay.toFixed(2)}</td></tr>`).join('');
-  } finally {
-    CM.showLoading(false);
-  }
-}
-
-document.getElementById('btnRecalcBurndown').addEventListener('click', buildBurndown);
-// hook para refrescar al entrar a burndown
-window._hooks = window._hooks || {}; window._hooks['view-burndown'] = buildBurndown;
-// carga inicial si se abre directo
-buildBurndown();
+document.getElementById('btnRecalcBurndown')?.addEventListener('click', recalc);
+window._hooks = window._hooks || {};
+window._hooks['view-burndown'] = recalc;
 
 })();

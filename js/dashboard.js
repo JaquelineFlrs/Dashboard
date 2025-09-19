@@ -1,111 +1,51 @@
 (function(){
 'use strict';
 const CM = window._commons;
+const db = CM.db;
 
-// --- Header (sprint activo o vigente por fechas) ---
-async function loadSprintHeader(){
-  // intenta activo true/1
-  let { data, error } = await window.db
-    .from(CM.TABLES.SPRINTS)
-    .select('nombre, fecha_inicio, fecha_fin')
-    .or('activo.eq.true,activo.eq.1')
-    .limit(1)
-    .maybeSingle();
-
-  // fallback: sprint vigente hoy
-  if (error || !data) {
-    const today = new Date().toISOString().slice(0,10);
-    const q = await window.db
-      .from(CM.TABLES.SPRINTS)
+async function loadHeader(){
+  try{
+    const { data, error } = await db.from(CM.TABLES.SPRINTS)
       .select('nombre, fecha_inicio, fecha_fin')
-      .lte('fecha_inicio', today)
-      .gte('fecha_fin', today)
-      .order('fecha_inicio', { ascending:false })
-      .limit(1)
-      .maybeSingle();
-    data = q.data; error = q.error;
-  }
-
-  if (error || !data) return;
-
-  const titleEl = document.getElementById('sprintTitle');
-  const datesEl = document.getElementById('sprintDates');
-  const chipEl  = document.getElementById('chipDias');
-  const daysEl  = document.getElementById('daysLeft');
-
-  titleEl.textContent = data.nombre || 'Sprint activo';
-  datesEl.textContent = `${CM.fmtDate(data.fecha_inicio)} → ${CM.fmtDate(data.fecha_fin)}`;
-
-  const today = new Date(); today.setHours(0,0,0,0);
-  const end = new Date((data.fecha_fin || '') + 'T00:00:00');
-  const diff = Math.max(0, Math.ceil((end - today) / (1000*60*60*24)));
-  if (chipEl) chipEl.innerHTML = `Días restantes: <b>${diff}</b>`;
-  if (daysEl) daysEl.textContent = String(diff);
+      .eq('activo', true).limit(1).maybeSingle();
+    if(error){ throw error; }
+    const hoy = new Date();
+    if(data){
+      const dias_restantes = Math.ceil((new Date(data.fecha_fin) - hoy)/(1000*60*60*24));
+      document.getElementById('sprintTitle').textContent = data.nombre || 'Sprint activo';
+      document.getElementById('sprintDates').textContent = `${CM.fmtDate(data.fecha_inicio)} → ${CM.fmtDate(data.fecha_fin)}`;
+      document.getElementById('daysLeft').textContent = String(dias_restantes);
+    }else{
+      document.getElementById('sprintTitle').textContent = 'Sin sprint activo';
+      document.getElementById('sprintDates').textContent = '—';
+      document.getElementById('daysLeft').textContent = '—';
+    }
+  }catch(e){ console.warn('header:', e); }
 }
 
-// --- KPIs ---
-async function loadKpis(){
-  const KPI_SOURCES = {
-    pctSprint:       { view: 'vw_totales_sprint', column: 'pct_avance' },
-    horasSubtarea:   { view: 'vw_totales_sprint', column: 'total_x_sub' },
-    totalPendientes: { view: 'vw_totales_sprint', column: 'total_pendientes' },
-    horasTerminadas: { view: 'vw_totales_sprint', column: 'total_terminadas' }
-  };
-  const { data, error } = await window.db
-    .from(KPI_SOURCES.pctSprint.view)
-    .select('*')
-    .limit(1)
-    .maybeSingle();
-  if (error || !data) return;
-
-  const pct   = Number(data[KPI_SOURCES.pctSprint.column] ?? 0);
-  const hrsS  = Number(data[KPI_SOURCES.horasSubtarea.column] ?? 0);
-  const pend  = Number(data[KPI_SOURCES.totalPendientes.column] ?? 0);
-  const hrsT  = Number(data[KPI_SOURCES.horasTerminadas.column] ?? 0);
-
-  const pctEl  = document.getElementById('kpiPctSprint');
-  const hrsSEl = document.getElementById('kpiHorasSubtarea');
-  const pendEl = document.getElementById('kpiTotalPendientes');
-  const hrsTEl = document.getElementById('kpiHorasTerminadas');
-
-  if (pctEl)  pctEl.textContent  = (isFinite(pct) ? pct.toFixed(1) : '0') + '%';
-  if (hrsSEl) hrsSEl.textContent = isFinite(hrsS) ? hrsS.toLocaleString('es-MX') : '—';
-  if (pendEl) pendEl.textContent = isFinite(pend) ? pend.toLocaleString('es-MX') : '—';
-  if (hrsTEl) hrsTEl.textContent = isFinite(hrsT) ? hrsT.toLocaleString('es-MX') : '—';
+async function loadKPIs(){
+  // Consulta a la vista de totales de sprint si existe
+  try{
+    const { data } = await db.from(CM.VIEWS.TOTALES_SPRINT).select('*').limit(1);
+    const k = (data && data[0]) || {};
+    document.getElementById('kpiPctSprint').textContent = (k.pct_avance!=null? (Math.round(k.pct_avance*1000)/10)+'%':'—');
+    document.getElementById('kpiHorasSubtarea').textContent = k.total_x_sub!=null? CM.fmtNum(k.total_x_sub):'—';
+    document.getElementById('kpiTotalPendientes').textContent = k.total_pendientes!=null? CM.fmtNum(k.total_pendientes):'—';
+    document.getElementById('kpiHorasTerminadas').textContent = k.total_terminadas!=null? CM.fmtNum(k.total_terminadas):'—';
+  }catch(_){ /* ignora si no existe la vista */ }
 }
 
-// --- Tablas ---
-async function loadTabla(view, theadId, tbodyId){
-  const { data, error } = await window.db.from(view).select('*');
-  if (error) { console.error(view, error); return; }
-  const thead = document.getElementById(theadId);
-  const tbody = document.getElementById(tbodyId);
-  window.renderTable ? window.renderTable(thead, tbody, data) : (function(){
-    // fallback render if helper not found
-    thead.innerHTML = '';
-    tbody.innerHTML = '';
-    if (!data || !data.length){ thead.innerHTML = '<tr><th>Sin datos</th></tr>'; return; }
-    const cols = Object.keys(data[0]);
-    thead.innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>';
-    tbody.innerHTML = data.map(r=>'<tr>'+cols.map(c=>`<td>${(r[c]??'')}</td>`).join('')+'</tr>').join('');
-  })();
+async function loadTables(){
+  async function q(view){ try{ const { data } = await db.from(view).select('*').limit(1000); return data||[]; }catch(_){ return []; } }
+  const porLista = await q(CM.VIEWS.AVANCE_LISTA);
+  CM.renderTable(document.getElementById('theadLista'), document.getElementById('tbodyLista'), porLista);
+  const porProp = await q(CM.VIEWS.TOTALES_PROP);
+  CM.renderTable(document.getElementById('theadProp'), document.getElementById('tbodyProp'), porProp);
 }
 
-// --- Refresh all ---
-async function refreshDashboard(){
-  try {
-    CM.showLoading(true);
-    await loadSprintHeader();
-    await loadKpis();
-    await loadTabla(CM.VIEWS.AVANCE_LISTA, 'theadLista', 'tbodyLista');
-    await loadTabla(CM.VIEWS.TOTALES_PROP, 'theadProp', 'tbodyProp');
-  } finally {
-    CM.showLoading(false);
-  }
-}
-
-(()=>{ const b=document.getElementById('btnRefreshDashboard'); if(b) b.addEventListener('click', refreshDashboard); })();
-window._hooks = window._hooks || {}; window._hooks['view-dashboard'] = refreshDashboard;
-refreshDashboard();
+window._hooks = window._hooks || {};
+window._hooks['view-dashboard'] = ()=>{ loadHeader(); loadKPIs(); loadTables(); };
+// precargar
+loadHeader(); loadKPIs(); loadTables();
 
 })();
