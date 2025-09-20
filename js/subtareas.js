@@ -13,6 +13,9 @@ const CANDIDATES = {
 };
 let subtareasRaw = [];
 let subKeys = {};
+// Column name constants to avoid scope issues
+const ID_COL = 'ID de Tarea';
+const FECHA_COL = 'Fecha de terminación';
 
 const $sub = (id)=> document.getElementById(id);
 function isTerminada(row){
@@ -172,28 +175,50 @@ loadSubtareas();
 
 async function updateTerminada(id, checked){
   try{
-    const idKey = (typeof subKeys !== 'undefined' && subKeys.id) ? subKeys.id : 'ID de Tarea';
-    const fechaKey = "Fecha de terminación";
+    const idKey = 'id'; // use the real PK
+    const fechaKey = 'Fecha de terminación';
     const today = new Date();
     const value = checked ? today.toISOString().slice(0,10) : null;
 
     const client = window.db || window.supabase || (typeof sb!=='undefined'?sb:null);
     if(!client){ console.warn('Supabase client not found'); return false; }
 
-    const { error } = await client
+    // Update by real PK (id)
+    const { data, error } = await client
       .from('SUBTAREAS')
       .update({ [fechaKey]: value })
-      .eq(idKey, id);
+      .eq(idKey, id)
+      .select(idKey);
 
-    if(error){ console.error(error); return false; }
+    if(error){ console.error('Error updating fecha de terminación:', error); return false; }
+    if(!data || data.length === 0){ console.warn('No rows updated for', idKey, id); return false; }
 
-    const raw = window.subtareasRaw || [];
-    const row = raw.find(x=> String(x[idKey]) === String(id));
+    // Update in-memory cache
+    const raw = window.subtareasRaw || window.subtareas || [];
+    const row = Array.isArray(raw) ? raw.find(x=> String(x[idKey]) === String(id)) : null;
     if(row){ row[fechaKey] = value; }
 
     return true;
   }catch(e){
-    console.error(e);
+    console.error('updateTerminada exception:', e);
     return false;
+  }
+}
+
+
+/**
+ * Safe checkbox handler that persists the new state; reverts if update fails.
+ * Expects checkbox elements to carry data-id with the SUBTAREAS.id value.
+ */
+async function onChangeChkTerminada(ev){
+  const el = ev && ev.target ? ev.target : null;
+  if(!el) return;
+  const id = el.getAttribute('data-id');
+  const checked = !!el.checked;
+  const ok = await updateTerminada(id, checked);
+  if(!ok){
+    // revert visual state if DB update failed
+    el.checked = !checked;
+    alert('No se pudo guardar el cambio. Revisa conexión y permisos.');
   }
 }
