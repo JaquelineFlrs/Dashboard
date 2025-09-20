@@ -186,14 +186,27 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
 /* ===== Burndown full-bleed (9/3) ===== */
 #view-burndown.view { padding-top: 0; }
 
-.bd-head{
-  display:flex; align-items:center; justify-content:space-between;
-  padding: 10px 14px;
-
-  border-radius: 12px;
+.bd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;              /* más ligero */
   margin-bottom: 10px;
-  border: 1px solid var(--muted-2);
+  border: none;                /* sin borde */
+  background: none;            /* sin fondo */
 }
+
+.bd-head h3 {
+  margin: 0;
+  font-weight: 700;
+  color: #e91e63;              /* rosa (puedes usar var(--accent) si prefieres) */
+}
+
+.bd-head .tools label,
+.bd-head .tools button {
+  font-size: 14px;
+}
+
 
 .burndown-full{
   display: grid;
