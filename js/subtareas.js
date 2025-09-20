@@ -1,6 +1,6 @@
 // subtareas.js
 // ==================================================
-// Dashboard: Subtareas (carga, render y toggles "terminada" y "mostrar")
+// Dashboard: Subtareas (terminada ↔ Fecha de terminación + terminada_fecha, y toggle Mostrar)
 // ==================================================
 (function () {
   'use strict';
@@ -15,7 +15,8 @@
     ESTADO: 'Estado personalizado',
     DURACION: 'Duración',
     FECHA_TERM: 'Fecha de terminación',
-    MOSTRAR: 'Mostrar' // 0 = mostrar, 1 = ocultar
+    TERMINADA_FECHA: 'terminada_fecha',   // 👈 nueva columna
+    MOSTRAR: 'Mostrar'                    // 0 = mostrar, 1 = ocultar
   };
 
   // ======= Estado =======
@@ -32,8 +33,9 @@
   const getClient = () => window.db || window.supabase || (typeof sb !== 'undefined' ? sb : null);
 
   const isTerminada = (row) => {
-    const v = row?.[COLS.FECHA_TERM];
-    return v !== null && v !== undefined && String(v).trim() !== '';
+    const a = row?.[COLS.FECHA_TERM];
+    const b = row?.[COLS.TERMINADA_FECHA];
+    return (a && String(a).trim() !== '') || (b && String(b).trim() !== '');
   };
   const isMarcadaMostrar = (row) => Number(row?.[COLS.MOSTRAR] ?? 0) === 0; // checked = se muestra (0)
 
@@ -75,6 +77,7 @@
       `"${COLS.ESTADO}"`,
       `"${COLS.DURACION}"`,
       `"${COLS.FECHA_TERM}"`,
+      `"${COLS.TERMINADA_FECHA}"`,   // 👈 incluimos terminada_fecha
       `"${COLS.MOSTRAR}"`
     ].join(',');
 
@@ -97,22 +100,24 @@
   }
 
   // ======= Updates =======
-  // Fecha de terminación (terminada)
+  // Terminada: actualiza AMBAS columnas (Fecha de terminación y terminada_fecha)
   async function updateTerminada(idOrExt, checked) {
     try {
       const value = checked ? new Date().toISOString().slice(0, 10) : null;
       const client = getClient(); if (!client) return false;
 
+      const payload = { [COLS.FECHA_TERM]: value, [COLS.TERMINADA_FECHA]: value };
+
       let { data, error } = await client
         .from('SUBTAREAS')
-        .update({ [COLS.FECHA_TERM]: value })
+        .update(payload)
         .eq(PK_COL, idOrExt)
         .select(PK_COL);
 
       if (!error && (!data || data.length === 0)) {
         ({ data, error } = await client
           .from('SUBTAREAS')
-          .update({ [COLS.FECHA_TERM]: value })
+          .update(payload)
           .eq(COLS.ID_EXT, idOrExt)
           .select(COLS.ID_EXT));
       }
@@ -120,7 +125,7 @@
       if (error || !data || data.length === 0) return false;
 
       const r = STATE.rows.find(x => String(x[PK_COL])===String(idOrExt) || String(x[COLS.ID_EXT])===String(idOrExt));
-      if (r) r[COLS.FECHA_TERM] = value;
+      if (r) { r[COLS.FECHA_TERM] = value; r[COLS.TERMINADA_FECHA] = value; }
 
       return true;
     } catch(e) { console.error(e); return false; }
@@ -129,7 +134,6 @@
   // Mostrar (0 = mostrar, 1 = ocultar)
   async function updateMostrar(idOrExt, checked) {
     try {
-      // checked = queremos mostrar ⇒ valor 0; unchecked ⇒ ocultar ⇒ 1
       const value = checked ? 0 : 1;
       const client = getClient(); if (!client) return false;
 
