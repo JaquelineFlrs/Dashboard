@@ -60,7 +60,7 @@
       PK_COL,
       `"${COLS.ID_EXT}"`,
       `"${COLS.ID_PARENT}"`,
-      `"${COLS.NOMBRE}"",
+      `"${COLS.NOMBRE}"`,
       `"${COLS.PROPIETARIO}"`,
       `"${COLS.ESTADO}"`,
       `"${COLS.DURACION}"`,
@@ -152,14 +152,8 @@
     if (!ok) {
       el.checked = !newChecked;
       alert('No se pudo guardar el cambio.');
-    } else {
-      // Éxito: mantenemos el estado y, opcionalmente, actualizamos la fila sin re-render completo
-      const tr = el.closest('tr');
-      if (tr) {
-        // Si quieres pintar algo, aquí podrías añadir una clase “verde” temporal, etc.
-        // tr.classList.add('saved-flash'); setTimeout(()=>tr.classList.remove('saved-flash'), 500);
-      }
     }
+    // Si fue OK, mantenemos el estado actual (no hay re-render inmediato)
 
     el.disabled = false;
     delete el.dataset.busy;
