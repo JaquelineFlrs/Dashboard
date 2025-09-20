@@ -1,224 +1,215 @@
-(function(){
-'use strict';
-const CM = window._commons;
-// subtareas.js — tabla de selección mostrar/no mostrar
+// subtareas.js
+// ==================================================
+// Dashboard: Subtareas (carga, render y checkbox "terminada")
+// ==================================================
+(function () {
+  'use strict';
 
-
-const CANDIDATES = {
-  ID: ['id','ID','ID de Subtarea','ID de subtarea','ID de Tarea','ID_de_Tarea','ID_subtarea','id_subtarea'],
-  NOMBRE: ['Subtarea','subtarea','Nombre','nombre','Título','titulo'],
-  PROPIETARIO: ['Propietario','propietario','Owner','owner','Asignado a','asignado'],
-  HORAS: ['Horas','Duración (hrs)','Duracion (hrs)','Duración','Duracion','Horas estimadas','horas'],
-  MOSTRAR: ['mostrar','Mostrar']
-};
-let subtareasRaw = [];
-let subKeys = {};
-// Column name constants to avoid scope issues
-const ID_COL = 'ID de Tarea';
-const FECHA_COL = 'Fecha de terminación';
-
-const $sub = (id)=> document.getElementById(id);
-function isTerminada(row){
-  try{
-    const fechaKey = "Fecha de terminación";
-    const v = row && fechaKey in row ? row[fechaKey] : null;
-    return v !== null && v !== undefined && String(v).trim() !== '';
-  }catch(e){ return false; }
-}
-// UI state
-const SUB_UI_KEY = 'subtareas_ui_v1';
-let ui = { q:'', onlyShown:false, sort:{ key:null, dir:1 } };
-try{ ui = Object.assign(ui, JSON.parse(localStorage.getItem(SUB_UI_KEY)||'{}')); }catch{}
-
-function findKey(obj, list){ return list.find(k=> Object.prototype.hasOwnProperty.call(obj,k)); }
-function normalizeBool(v){ return (v===true || v==='true' || v===1 || v==='1'); }
-function escapeHtml(x){ if(x==null) return ''; return String(x).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
-
-async function loadSubtareas(){
-  const { data, error } = await window.db.from(CM.TABLES.SUBTAREAS).select('*').limit(5000);
-  if(error){ console.error('SUBTAREAS', error); return; }
-  subtareasRaw = data || [];
-  const sample = subtareasRaw.find(r=>r) || {};
-  subKeys = {
-    id: findKey(sample, CANDIDATES.ID) || 'id',
-    nombre: findKey(sample, CANDIDATES.NOMBRE) || 'nombre',
-    propietario: findKey(sample, CANDIDATES.PROPIETARIO),
-    horas: findKey(sample, CANDIDATES.HORAS),
-    mostrar: findKey(sample, CANDIDATES.MOSTRAR) || 'mostrar',
+  // ======= Config =======
+  const PK_COL = 'id'; // PK real en SUBTAREAS (bigint)
+  const COLS = {
+    ID_EXT: 'ID de Tarea',
+    ID_PARENT: 'ID de Tarea principal',
+    NOMBRE: 'Nombre de Tarea',
+    PROPIETARIO: 'Propietario',
+    ESTADO: 'Estado personalizado',
+    DURACION: 'Duración',
+    FECHA_TERM: 'Fecha de terminación',
+    MOSTRAR: 'Mostrar'
   };
-  renderSubtareas();
-}
 
-function applySort(arr){
-  try{
-    const s = ui && ui.sort ? ui.sort : { key:null, dir:1 };
-    if(!s.key) return Array.isArray(arr) ? arr : [];
-    const key = s.key; const dir = s.dir || 1;
-    return (arr||[]).slice().sort((a,b)=>{
-      const av = (a[key] ?? '').toString().toLowerCase();
-      const bv = (b[key] ?? '').toString().toLowerCase();
-      if(av<bv) return -1*dir;
-      if(av>bv) return 1*dir;
-      return 0;
-    });
-  }catch(e){ console.error('applySort failed', e); return arr||[]; }
-}
-function getFiltered(){
-  try{
-    const q = (ui.q||'').toLowerCase().trim();
-    const onlyShown = !!ui.onlyShown;
-    const base = Array.isArray(subtareasRaw) ? subtareasRaw : [];
-    const res = base.filter(r=>{
-      const txt = [r[subKeys.nombre], r[subKeys.propietario], r[subKeys.id]]
-        .filter(Boolean).join(' ').toLowerCase();
-      const okQ = q ? txt.includes(q) : true;
-      const okShown = onlyShown ? normalizeBool(r[subKeys.mostrar]) : true;
-      return okQ && okShown;
-    });
-    return applySort(res || []);
-  }catch(e){
-    console.error('getFiltered failed', e);
-    return [];
+  // ======= Estado =======
+  const STATE = {
+    rows: [],
+    loading: false,
+    lastError: null
+  };
+
+  // ======= Helpers =======
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const esc = (s) =>
+    String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function getClient() {
+    return window.db || window.supabase || (typeof sb !== 'undefined' ? sb : null);
   }
-}
 
-function renderSubtareas(){
-  const head = $sub('theadSubSel'), body = $sub('tbodySubSel');
-  let rows; try{ rows = getFiltered() || []; }catch(e){ console.error(e); rows = []; }
-  head.innerHTML = `<tr>
-    <th class="chk">Terminada</th>
-    <th class="chk">Mostrar</th>
-    <th>${subKeys.id}</th>
-    <th>${subKeys.nombre}</th>
-    ${subKeys.propietario? `<th>${subKeys.propietario}</th>`:''}
-    ${subKeys.horas? `<th>${subKeys.horas}</th>`:''}
-  </tr>`;
-  if(rows.length===0){ body.innerHTML = '<tr><td colspan="6">Sin datos</td></tr>'; return; }
-  body.innerHTML = rows.map(r=>{
-    const checked = normalizeBool(r[subKeys.mostrar]) ? 'checked' : '';
-    return `<tr data-id="${escapeHtml(r[subKeys.id])}">
-            <td class="chk"><input type="checkbox" class="chkTerminada" ${isTerminada(r)?'checked':''}></td>
-      <td class="chk"><input type="checkbox" class="chkMostrar" ${checked}></td>
-<td>${escapeHtml(r[subKeys.id])}</td>
-      <td>${escapeHtml(r[subKeys.nombre])}</td>
-      ${subKeys.propietario? `<td>${escapeHtml(r[subKeys.propietario])}</td>`:''}
-      ${subKeys.horas? `<td>${escapeHtml(r[subKeys.horas])}</td>`:''}
-    </tr>`;
-  }).join('');
-
-  document.querySelectorAll('.chkTerminada').forEach(chk=>{
-    chk.addEventListener('change', async (ev)=>{
-      const el = ev.target;
-      const tr = el.closest('tr');
-      const id = tr?.getAttribute('data-id');
-      el.disabled = true;
-      const ok = await updateTerminada(id, el.checked);
-      el.disabled = false;
-      if(!ok){ el.checked = !el.checked; return; }
-      renderSubtareas();
-    });
-  });
-  document.querySelectorAll('.chkMostrar').forEach(chk=>{
-    chk.addEventListener('change', async (ev)=>{
-      const tr = ev.target.closest('tr');
-      const id = tr?.getAttribute('data-id');
-      if(!id) return;
-      try{
-        const payload={}; payload[subKeys.mostrar] = ev.target.checked ? 1 : 0;
-        const { error } = await window.db.from(CM.TABLES.SUBTAREAS).update(payload).eq(subKeys.id, id);
-        if(error) throw error;
-        const row = subtareasRaw.find(x=> String(x[subKeys.id])===String(id));
-        if(row) row[subKeys.mostrar]=ev.target.checked;
-      }catch(e){
-        console.error(e); alert('No se pudo actualizar "mostrar".'); ev.target.checked = !ev.target.checked;
-      }
-    });
-  });
-}
-
-$sub('subSearch').addEventListener('input', renderSubtareas);
-$sub('subOnlyShown').addEventListener('change', renderSubtareas);
-$sub('btnMarkAll').addEventListener('click', async ()=>{
-  const ids = Array.from(document.querySelectorAll('#tbodySubSel tr[data-id]')).map(tr=> tr.getAttribute('data-id'));
-  if(!ids.length) return;
-  await bulkSetMostrar(true, ids);
-});
-$sub('btnUnmarkAll').addEventListener('click', async ()=>{
-  const ids = Array.from(document.querySelectorAll('#tbodySubSel tr[data-id]')).map(tr=> tr.getAttribute('data-id'));
-  if(!ids.length) return;
-  await bulkSetMostrar(false, ids);
-});
-
-async function bulkSetMostrar(value, ids){
-  CM.showLoading(true);
-  const chunk=500;
-  try{
-    for(let i=0;i<ids.length;i+=chunk){
-      const slice = ids.slice(i,i+chunk);
-      const payload = { mostrar: value ? 1 : 0 };
-      const { error } = await window.db.from(CM.TABLES.SUBTAREAS).update(payload).in('id', slice);
-      if(error) throw error;
-      // update local
-      subtareasRaw.forEach(r=>{ if(slice.includes(String(r['id']))) r['mostrar']=value; });
+  function isTerminada(row) {
+    try {
+      const v = row?.[COLS.FECHA_TERM];
+      return v !== null && v !== undefined && String(v).trim() !== '';
+    } catch {
+      return false;
     }
-    renderSubtareas();
-  }catch(e){
-    console.error(e); alert('No se pudo aplicar el cambio masivo.');
-  }finally{ CM.showLoading(false); }
-}
+  }
 
-// hook
-window._hooks = window._hooks || {}; window._hooks['view-subtareas'] = loadSubtareas;
-loadSubtareas();
+  // ======= Data =======
+  async function fetchSubtareas() {
+    STATE.loading = true;
+    STATE.lastError = null;
+    const client = getClient();
+    if (!client) {
+      STATE.loading = false;
+      STATE.lastError = 'No supabase client';
+      console.warn('Supabase client not found');
+      return [];
+    }
 
-})();
+    const selectCols = [
+      PK_COL,
+      `"${COLS.ID_EXT}"`,
+      `"${COLS.ID_PARENT}"`,
+      `"${COLS.NOMBRE}"`,
+      `"${COLS.PROPIETARIO}"`,
+      `"${COLS.ESTADO}"`,
+      `"${COLS.DURACION}"`,
+      `"${COLS.FECHA_TERM}"`,
+      `"${COLS.MOSTRAR}"`
+    ].join(',');
 
-async function updateTerminada(id, checked){
-  try{
-    const idKey = 'id'; // use the real PK
-    const fechaKey = 'Fecha de terminación';
-    const today = new Date();
-    const value = checked ? today.toISOString().slice(0,10) : null;
-
-    const client = window.db || window.supabase || (typeof sb!=='undefined'?sb:null);
-    if(!client){ console.warn('Supabase client not found'); return false; }
-
-    // Update by real PK (id)
-    const { data, error } = await client
+    // Trae solo las visibles (Mostrar = 0). Ajusta si tu lógica es distinta.
+    const query = client
       .from('SUBTAREAS')
-      .update({ [fechaKey]: value })
-      .eq(idKey, id)
-      .select(idKey);
+      .select(selectCols)
+      .eq(COLS.MOSTRAR, 0)
+      .order(PK_COL, { ascending: true });
 
-    if(error){ console.error('Error updating fecha de terminación:', error); return false; }
-    if(!data || data.length === 0){ console.warn('No rows updated for', idKey, id); return false; }
+    const { data, error } = await query;
+    STATE.loading = false;
 
-    // Update in-memory cache
-    const raw = window.subtareasRaw || window.subtareas || [];
-    const row = Array.isArray(raw) ? raw.find(x=> String(x[idKey]) === String(id)) : null;
-    if(row){ row[fechaKey] = value; }
+    if (error) {
+      STATE.lastError = error.message || String(error);
+      console.error('fetchSubtareas error:', error);
+      return [];
+    }
 
-    return true;
-  }catch(e){
-    console.error('updateTerminada exception:', e);
-    return false;
+    STATE.rows = Array.isArray(data) ? data : [];
+    window.subtareasRaw = STATE.rows; // si tu sistema la usa
+    return STATE.rows;
   }
-}
 
+  // ======= Update: checkbox terminada =======
+  async function updateTerminada(idOrExt, checked) {
+    try {
+      const value = checked ? new Date().toISOString().slice(0, 10) : null;
+      const client = getClient();
+      if (!client) {
+        console.warn('Supabase client not found');
+        return false;
+      }
 
-/**
- * Safe checkbox handler that persists the new state; reverts if update fails.
- * Expects checkbox elements to carry data-id with the SUBTAREAS.id value.
- */
-async function onChangeChkTerminada(ev){
-  const el = ev && ev.target ? ev.target : null;
-  if(!el) return;
-  const id = el.getAttribute('data-id');
-  const checked = !!el.checked;
-  const ok = await updateTerminada(id, checked);
-  if(!ok){
-    // revert visual state if DB update failed
-    el.checked = !checked;
-    alert('No se pudo guardar el cambio. Revisa conexión y permisos.');
+      // 1) Intentar por PK real (id)
+      let { data, error } = await client
+        .from('SUBTAREAS')
+        .update({ [COLS.FECHA_TERM]: value })
+        .eq(PK_COL, idOrExt)
+        .select(PK_COL);
+
+      // 2) Si no encontró nada, intentar por "ID de Tarea" externo
+      if (!error && (!data || data.length === 0)) {
+        ({ data, error } = await client
+          .from('SUBTAREAS')
+          .update({ [COLS.FECHA_TERM]: value })
+          .eq(COLS.ID_EXT, idOrExt)
+          .select(COLS.ID_EXT));
+      }
+
+      if (error) {
+        console.error('Error updating Fecha de terminación:', error);
+        return false;
+      }
+      if (!data || data.length === 0) {
+        console.warn('No rows updated');
+        return false;
+      }
+
+      // Sincronizar cache local
+      const r = STATE.rows.find(
+        (x) => String(x[PK_COL]) === String(idOrExt) || String(x[COLS.ID_EXT]) === String(idOrExt)
+      );
+      if (r) r[COLS.FECHA_TERM] = value;
+
+      return true;
+    } catch (e) {
+      console.error('updateTerminada exception:', e);
+      return false;
+    }
   }
-}
+
+  async function onChangeChkTerminada(ev) {
+    const el = ev?.target;
+    if (!el) return;
+    const id = el.getAttribute('data-id') || el.getAttribute('data-idexterno'); // admite PK o "ID de Tarea"
+    const checked = !!el.checked;
+    const ok = await updateTerminada(id, checked);
+    if (!ok) {
+      el.checked = !checked;
+      alert('No se pudo guardar el cambio.');
+    }
+  }
+
+  // ======= Render =======
+  function renderRows(rows) {
+    const tbody = $('#tblSubtareasBody');
+    if (!tbody) {
+      console.warn('No se encontró #tblSubtareasBody');
+      return;
+    }
+    if (!Array.isArray(rows) || rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:12px;">Sin registros</td></tr>`;
+      return;
+    }
+
+    const html = rows
+      .map((row) => {
+        const idPk = row?.[PK_COL] ?? '';
+        const idExt = row?.[COLS.ID_EXT] ?? '';
+        const checked = isTerminada(row) ? 'checked' : '';
+        return `
+          <tr>
+            <td>${esc(row[COLS.NOMBRE])}</td>
+            <td>${esc(row[COLS.PROPIETARIO])}</td>
+            <td>${esc(row[COLS.ESTADO])}</td>
+            <td style="text-align:right;">${esc(row[COLS.DURACION])}</td>
+            <td>${esc(row[COLS.FECHA_TERM] ?? '')}</td>
+            <td style="text-align:center;">
+              <input type="checkbox"
+                     data-id="${esc(idPk)}"
+                     data-idexterno="${esc(idExt)}"
+                     onchange="Subtareas.onChangeChkTerminada(event)"
+                     ${checked}>
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+    tbody.innerHTML = html;
+  }
+
+  // ======= API pública =======
+  const API = {
+    init: async function () {
+      try {
+        const rows = await fetchSubtareas();
+        renderRows(rows);
+      } catch (e) {
+        console.error('Subtareas.init error:', e);
+      }
+    },
+    reload: async function () {
+      const rows = await fetchSubtareas();
+      renderRows(rows);
+    },
+    onChangeChkTerminada
+  };
+
+  // Exponer en window
+  window.Subtareas = API;
+
+  // Auto-init
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(API.init, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', API.init, { once: true });
+  }
+})();
