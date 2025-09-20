@@ -55,11 +55,12 @@
       return [];
     }
 
+    // Trae solo las visibles (Mostrar = 0). Ajusta si tu lógica es distinta.
     const selectCols = [
       PK_COL,
       `"${COLS.ID_EXT}"`,
       `"${COLS.ID_PARENT}"`,
-      `"${COLS.NOMBRE}"`,
+      `"${COLS.NOMBRE}"",
       `"${COLS.PROPIETARIO}"`,
       `"${COLS.ESTADO}"`,
       `"${COLS.DURACION}"`,
@@ -67,14 +68,12 @@
       `"${COLS.MOSTRAR}"`
     ].join(',');
 
-    // Trae solo las visibles (Mostrar = 0). Ajusta si tu lógica es distinta.
-    const query = client
+    const { data, error } = await client
       .from('SUBTAREAS')
       .select(selectCols)
       .eq(COLS.MOSTRAR, 0)
       .order(PK_COL, { ascending: true });
 
-    const { data, error } = await query;
     STATE.loading = false;
 
     if (error) {
@@ -136,19 +135,38 @@
     }
   }
 
+  // Handler con UI estable (no se “desmarca” si todo salió bien)
   async function onChangeChkTerminada(ev) {
     const el = ev?.target;
-    if (!el) return;
+    if (!el || el.dataset.busy === '1') return;
     const id = el.getAttribute('data-id') || el.getAttribute('data-idexterno'); // admite PK o "ID de Tarea"
-    const checked = !!el.checked;
-    const ok = await updateTerminada(id, checked);
+    const newChecked = !!el.checked;
+
+    // Bloquear mientras se guarda (evita dobles clics y flickers)
+    el.dataset.busy = '1';
+    el.disabled = true;
+
+    const ok = await updateTerminada(id, newChecked);
+
+    // Si falló, revertimos visualmente
     if (!ok) {
-      el.checked = !checked;
+      el.checked = !newChecked;
       alert('No se pudo guardar el cambio.');
+    } else {
+      // Éxito: mantenemos el estado y, opcionalmente, actualizamos la fila sin re-render completo
+      const tr = el.closest('tr');
+      if (tr) {
+        // Si quieres pintar algo, aquí podrías añadir una clase “verde” temporal, etc.
+        // tr.classList.add('saved-flash'); setTimeout(()=>tr.classList.remove('saved-flash'), 500);
+      }
     }
+
+    el.disabled = false;
+    delete el.dataset.busy;
   }
 
   // ======= Render =======
+  // Columnas en orden: Terminada (checkbox) · Mostrar · ID de Tarea · Nombre · Propietario · Duración
   function renderRows(rows) {
     const tbody = $('#tblSubtareasBody');
     if (!tbody) {
@@ -165,13 +183,10 @@
         const idPk = row?.[PK_COL] ?? '';
         const idExt = row?.[COLS.ID_EXT] ?? '';
         const checked = isTerminada(row) ? 'checked' : '';
+        const mostrarVal = row?.[COLS.MOSTRAR] ?? 0;
+
         return `
           <tr>
-            <td>${esc(row[COLS.NOMBRE])}</td>
-            <td>${esc(row[COLS.PROPIETARIO])}</td>
-            <td>${esc(row[COLS.ESTADO])}</td>
-            <td style="text-align:right;">${esc(row[COLS.DURACION])}</td>
-            <td>${esc(row[COLS.FECHA_TERM] ?? '')}</td>
             <td style="text-align:center;">
               <input type="checkbox"
                      data-id="${esc(idPk)}"
@@ -179,6 +194,11 @@
                      onchange="Subtareas.onChangeChkTerminada(event)"
                      ${checked}>
             </td>
+            <td style="text-align:center;">${esc(mostrarVal)}</td>
+            <td>${esc(idExt)}</td>
+            <td>${esc(row[COLS.NOMBRE])}</td>
+            <td>${esc(row[COLS.PROPIETARIO])}</td>
+            <td style="text-align:right;">${esc(row[COLS.DURACION])}</td>
           </tr>
         `;
       })
