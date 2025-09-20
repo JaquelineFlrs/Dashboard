@@ -183,17 +183,5 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
   color: var(--text-2);
 }
 
-#tblBurndown {
-  width: 100%;
-  border-collapse: collapse;
-}
-#tblBurndown th, #tblBurndown td {
-  padding: 6px 10px;
-  border: 1px solid var(--muted-2);
-}
-#tblBurndown th { background: var(--muted); text-align: center; }
-#tblBurndown td { text-align: center; }
-#tblBurndown td:nth-child(2),
-#tblBurndown td:nth-child(3) { text-align: right; }
 
 
