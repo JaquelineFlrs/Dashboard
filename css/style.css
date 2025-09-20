@@ -181,49 +181,80 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
   transform: translateY(-50%);
   font-size: 14px;
   color: var(--text-2);
-}/* ===== Layout burndown 8/4 ===== */
-.burndown-grid{
-  display: grid;
-  grid-template-columns: 2fr 1fr; /* 8/4 equivalente */
-  gap: 16px;
-  align-items: start;
 }
 
-/* izquierda: canvas responsivo */
+/* ===== Burndown full-bleed (9/3) ===== */
+#view-burndown.view { padding-top: 0; }
+
+.bd-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #ffd1e3 0%, rgba(255,209,227,.55) 100%);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--muted-2);
+}
+
+.burndown-full{
+  display: grid;
+  grid-template-columns: 3fr 1fr;  /* 9 / 3 */
+  gap: 16px;
+  align-items: start;
+  min-height: 520px;
+}
+
+/* Gráfica: ocupar todo el alto disponible */
 .bd-left{
   background: var(--surface);
-  border-radius: var(--radius);
+  border: 1px solid var(--muted-2);
+  border-radius: 12px;
+  padding: 8px;
 }
 .bd-left canvas{
   width: 100% !important;
-  height: auto !important; /* Chart.js ajusta alto con aspect ratio */
+  height: 68vh !important;      /* buen alto en viewport */
 }
 
-/* derecha: tabla con scroll propio */
+/* Tabla lateral con header fijo y scroll propio */
 .bd-right{
-  max-height: 520px; /* ajusta a gusto */
-  overflow: hidden;  /* el scroll va en la tabla envuelta */
-}
-.bd-right .tbl-wrap{
-  max-height: 100%;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* centrado de la tabla (como pediste) */
-#tblBurndown th,
-#tblBurndown td{
-  text-align: center;
-  vertical-align: middle;
+  background: var(--surface);
+  border: 1px solid var(--muted-2);
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 68vh;
+  display: flex; flex-direction: column;
 }
 
-/* Responsive: en pantallas chicas se apila */
+.bd-right .nice-table{
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  table-layout: fixed;
+}
+.bd-right .nice-table thead th{
+  position: sticky; top: 0; z-index: 1;
+}
+.bd-right .nice-table tbody{
+  display:block; overflow:auto; max-height: calc(68vh - 44px);
+}
+.bd-right .nice-table thead, 
+.bd-right .nice-table tbody tr{
+  display: table; width: 100%; table-layout: fixed;
+}
+
+/* Centrado de contenido */
+#tblBurndown th, #tblBurndown td{
+  text-align: center; vertical-align: middle;
+}
+
+/* Responsive: apilar en pantallas pequeñas */
 @media (max-width: 980px){
-  .burndown-grid{
-    grid-template-columns: 1fr; /* 12/12 */
-  }
-  .bd-right{ max-height: none; }
+  .burndown-full{ grid-template-columns: 1fr; }
+  .bd-right .nice-table tbody{ max-height: 320px; }
+  .bd-left canvas{ height: 46vh !important; }
 }
+
 
 
 
