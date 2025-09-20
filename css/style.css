@@ -183,5 +183,15 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
   color: var(--text-2);
 }
 
+#tblBurndown th,
+#tblBurndown td {
+  text-align: center;
+  vertical-align: middle;
+}
+#tblBurndown td:nth-child(2),
+#tblBurndown td:nth-child(3) {
+  text-align: center;              /* centrado */
+  font-variant-numeric: tabular-nums; /* mismo ancho por dígito */
+}
 
 
