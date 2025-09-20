@@ -127,35 +127,30 @@
       </section>
     </section>
 
-    <!-- BURNDOWN (pestaña aparte) -->
-    <section id="view-burndown" class="view">
-     <section class="card">
-  <h3>Burndown del sprint activo</h3>
-
-  <div class="tools">
-    <label class="muted"><input type="checkbox" id="bdExcludeWeekends" checked> Excluir fines de semana</label>
-    <label class="muted"><input type="checkbox" id="bdExcludeMxHolidays" checked> Excluir festivos México</label>
-    <button class="btn" id="btnRecalcBurndown">Recalcular</button>
+ <section id="view-burndown" class="view">
+  <div class="bd-head">
+    <h3>Burndown del sprint activo</h3>
+    <div class="tools">
+    <!--  <label class="muted"><input type="checkbox" id="bdExcludeWeekends" checked> Excluir fines de semana</label>
+      <label class="muted"><input type="checkbox" id="bdExcludeMxHolidays" checked> Excluir festivos México</label>
+      <button class="btn" id="btnRecalcBurndown">Recalcular</button>-->
+    </div>
   </div>
 
-  <!-- NUEVA GRILLA 8/4 -->
-  <div class="burndown-grid">
+  <div class="burndown-full">
     <div class="bd-left">
-      <canvas id="burndownCanvas" height="120"></canvas>
+      <canvas id="burndownCanvas"></canvas>
     </div>
 
     <aside class="bd-right">
-      <div class="tbl-wrap">
-        <table id="tblBurndown" class="nice-table">
-          <thead id="theadBD"></thead>
-          <tbody id="tbodyBD"></tbody>
-        </table>
-      </div>
+      <table id="tblBurndown" class="nice-table">
+        <thead id="theadBD"></thead>
+        <tbody id="tbodyBD"></tbody>
+      </table>
     </aside>
   </div>
 </section>
 
-    </section>
 
     <div class="loading" id="loading" style="visibility:hidden">
       <div class="dot"></div><div class="dot"></div><div class="dot"></div> Cargando…
