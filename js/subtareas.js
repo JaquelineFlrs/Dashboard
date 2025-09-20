@@ -1,6 +1,6 @@
 // subtareas.js
 // ==================================================
-// Dashboard: Subtareas (carga, render y checkbox "terminada")
+// Dashboard: Subtareas (carga, render y toggles "terminada" y "mostrar")
 // ==================================================
 (function () {
   'use strict';
@@ -15,7 +15,7 @@
     ESTADO: 'Estado personalizado',
     DURACION: 'Duración',
     FECHA_TERM: 'Fecha de terminación',
-    MOSTRAR: 'Mostrar'
+    MOSTRAR: 'Mostrar' // 0 = mostrar, 1 = ocultar
   };
 
   // ======= Estado =======
@@ -29,135 +29,15 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const esc = (s) =>
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const getClient = () => window.db || window.supabase || (typeof sb !== 'undefined' ? sb : null);
 
-  function getClient() {
-    return window.db || window.supabase || (typeof sb !== 'undefined' ? sb : null);
-  }
-
-  function isTerminada(row) {
+  const isTerminada = (row) => {
     const v = row?.[COLS.FECHA_TERM];
     return v !== null && v !== undefined && String(v).trim() !== '';
-  }
+  };
+  const isMarcadaMostrar = (row) => Number(row?.[COLS.MOSTRAR] ?? 0) === 0; // checked = se muestra (0)
 
-  // ======= Data =======
-  async function fetchSubtareas() {
-    STATE.loading = true;
-    STATE.lastError = null;
-
-    const client = getClient();
-    if (!client) {
-      STATE.loading = false;
-      STATE.lastError = 'No supabase client';
-      console.warn('Supabase client not found');
-      return [];
-    }
-
-    // Trae solo las visibles (Mostrar = 0). Ajusta si tu lógica es distinta.
-    const selectCols = [
-      PK_COL,
-      `"${COLS.ID_EXT}"`,
-      `"${COLS.ID_PARENT}"`,
-      `"${COLS.NOMBRE}"`,
-      `"${COLS.PROPIETARIO}"`,
-      `"${COLS.ESTADO}"`,
-      `"${COLS.DURACION}"`,
-      `"${COLS.FECHA_TERM}"`,
-      `"${COLS.MOSTRAR}"`
-    ].join(',');
-
-    const { data, error } = await client
-      .from('SUBTAREAS')
-      .select(selectCols)
-      .eq(COLS.MOSTRAR, 0) // Solo visibles
-      .order(PK_COL, { ascending: true });
-
-    STATE.loading = false;
-
-    if (error) {
-      STATE.lastError = error.message || String(error);
-      console.error('fetchSubtareas error:', error);
-      return [];
-    }
-
-    STATE.rows = Array.isArray(data) ? data : [];
-    // Copia global si tu app la usa en otros lados
-    window.subtareasRaw = STATE.rows;
-    return STATE.rows;
-  }
-
-  // ======= Update: checkbox Terminada =======
-  async function updateTerminada(idOrExt, checked) {
-    try {
-      const value = checked ? new Date().toISOString().slice(0, 10) : null;
-      const client = getClient();
-      if (!client) {
-        console.warn('Supabase client not found');
-        return false;
-      }
-
-      // 1) Intentar por PK real (id)
-      let { data, error } = await client
-        .from('SUBTAREAS')
-        .update({ [COLS.FECHA_TERM]: value })
-        .eq(PK_COL, idOrExt)
-        .select(PK_COL);
-
-      // 2) Si no encontró nada, intentar por "ID de Tarea" externo
-      if (!error && (!data || data.length === 0)) {
-        ({ data, error } = await client
-          .from('SUBTAREAS')
-          .update({ [COLS.FECHA_TERM]: value })
-          .eq(COLS.ID_EXT, idOrExt)
-          .select(COLS.ID_EXT));
-      }
-
-      if (error) {
-        console.error('Error updating Fecha de terminación:', error);
-        return false;
-      }
-      if (!data || data.length === 0) {
-        console.warn('No rows updated');
-        return false;
-      }
-
-      // Sincronizar cache local
-      const r = STATE.rows.find(
-        (x) => String(x[PK_COL]) === String(idOrExt) || String(x[COLS.ID_EXT]) === String(idOrExt)
-      );
-      if (r) r[COLS.FECHA_TERM] = value;
-
-      return true;
-    } catch (e) {
-      console.error('updateTerminada exception:', e);
-      return false;
-    }
-  }
-
-  // Handler con UI estable (no se “desmarca” si todo salió bien)
-  async function onChangeChkTerminada(ev) {
-    const el = ev?.target;
-    if (!el || el.dataset.busy === '1') return;
-    const id = el.getAttribute('data-id') || el.getAttribute('data-idexterno'); // admite PK o "ID de Tarea"
-    const newChecked = !!el.checked;
-
-    // Bloquear mientras se guarda (evita dobles clics y flickers)
-    el.dataset.busy = '1';
-    el.disabled = true;
-
-    const ok = await updateTerminada(id, newChecked);
-
-    // Si falló, revertimos visualmente
-    if (!ok) {
-      el.checked = !newChecked;
-      alert('No se pudo guardar el cambio.');
-    }
-    // Si fue OK, mantenemos el estado actual (no hay re-render inmediato)
-
-    el.disabled = false;
-    delete el.dataset.busy;
-  }
-
-  // ======= Render (encabezados + filas) =======
+  // ======= Render header (tu tabla usa theadSubSel) =======
   function renderHeader() {
     const thead = $('#theadSubSel');
     if (!thead) return;
@@ -173,43 +53,195 @@
     `;
   }
 
-  // Columnas visibles: Terminada (checkbox) · Mostrar · ID de Tarea · Nombre · Propietario · Duración
-  function renderRows(rows) {
-    const tbody = $('#tbodySubSel'); // <<— apuntamos a tu tabla actual
-    if (!tbody) {
-      console.warn('No se encontró #tbodySubSel');
-      return;
+  // ======= Data =======
+  async function fetchSubtareas() {
+    STATE.loading = true;
+    STATE.lastError = null;
+    const client = getClient();
+    if (!client) {
+      STATE.loading = false;
+      STATE.lastError = 'No supabase client';
+      console.warn('Supabase client not found');
+      return [];
     }
-    if (!Array.isArray(rows) || rows.length === 0) {
+
+    // Traemos TODAS (sin filtrar Mostrar) para que el toggle funcione.
+    const selectCols = [
+      PK_COL,
+      `"${COLS.ID_EXT}"`,
+      `"${COLS.ID_PARENT}"`,
+      `"${COLS.NOMBRE}"`,
+      `"${COLS.PROPIETARIO}"`,
+      `"${COLS.ESTADO}"`,
+      `"${COLS.DURACION}"`,
+      `"${COLS.FECHA_TERM}"`,
+      `"${COLS.MOSTRAR}"`
+    ].join(',');
+
+    const { data, error } = await client
+      .from('SUBTAREAS')
+      .select(selectCols)
+      .order(PK_COL, { ascending: true });
+
+    STATE.loading = false;
+
+    if (error) {
+      STATE.lastError = error.message || String(error);
+      console.error('fetchSubtareas error:', error);
+      return [];
+    }
+
+    STATE.rows = Array.isArray(data) ? data : [];
+    window.subtareasRaw = STATE.rows; // por compatibilidad si tu app la usa
+    return STATE.rows;
+  }
+
+  // ======= Updates =======
+  // Fecha de terminación (terminada)
+  async function updateTerminada(idOrExt, checked) {
+    try {
+      const value = checked ? new Date().toISOString().slice(0, 10) : null;
+      const client = getClient(); if (!client) return false;
+
+      let { data, error } = await client
+        .from('SUBTAREAS')
+        .update({ [COLS.FECHA_TERM]: value })
+        .eq(PK_COL, idOrExt)
+        .select(PK_COL);
+
+      if (!error && (!data || data.length === 0)) {
+        ({ data, error } = await client
+          .from('SUBTAREAS')
+          .update({ [COLS.FECHA_TERM]: value })
+          .eq(COLS.ID_EXT, idOrExt)
+          .select(COLS.ID_EXT));
+      }
+
+      if (error || !data || data.length === 0) return false;
+
+      const r = STATE.rows.find(x => String(x[PK_COL])===String(idOrExt) || String(x[COLS.ID_EXT])===String(idOrExt));
+      if (r) r[COLS.FECHA_TERM] = value;
+
+      return true;
+    } catch(e) { console.error(e); return false; }
+  }
+
+  // Mostrar (0 = mostrar, 1 = ocultar)
+  async function updateMostrar(idOrExt, checked) {
+    try {
+      // checked = queremos mostrar ⇒ valor 0; unchecked ⇒ ocultar ⇒ 1
+      const value = checked ? 0 : 1;
+      const client = getClient(); if (!client) return false;
+
+      let { data, error } = await client
+        .from('SUBTAREAS')
+        .update({ [COLS.MOSTRAR]: value })
+        .eq(PK_COL, idOrExt)
+        .select(PK_COL);
+
+      if (!error && (!data || data.length === 0)) {
+        ({ data, error } = await client
+          .from('SUBTAREAS')
+          .update({ [COLS.MOSTRAR]: value })
+          .eq(COLS.ID_EXT, idOrExt)
+          .select(COLS.ID_EXT));
+      }
+
+      if (error || !data || data.length === 0) return false;
+
+      const r = STATE.rows.find(x => String(x[PK_COL])===String(idOrExt) || String(x[COLS.ID_EXT])===String(idOrExt));
+      if (r) r[COLS.MOSTRAR] = value;
+
+      return true;
+    } catch(e) { console.error(e); return false; }
+  }
+
+  // ======= Handlers (con bloqueo para evitar flicker) =======
+  async function onChangeChkTerminada(ev) {
+    const el = ev?.target; if (!el || el.dataset.busy === '1') return;
+    const id = el.getAttribute('data-id') || el.getAttribute('data-idexterno');
+    const newChecked = !!el.checked;
+    el.dataset.busy='1'; el.disabled=true;
+    const ok = await updateTerminada(id, newChecked);
+    if (!ok) { el.checked = !newChecked; alert('No se pudo guardar el cambio.'); }
+    el.disabled=false; delete el.dataset.busy;
+  }
+
+  async function onChangeChkMostrar(ev) {
+    const el = ev?.target; if (!el || el.dataset.busy === '1') return;
+    const id = el.getAttribute('data-id') || el.getAttribute('data-idexterno');
+    const newChecked = !!el.checked; // checked = mostrar(0), unchecked = ocultar(1)
+    el.dataset.busy='1'; el.disabled=true;
+    const ok = await updateMostrar(id, newChecked);
+    if (!ok) { el.checked = !newChecked; alert('No se pudo guardar el cambio.'); }
+    el.disabled=false; delete el.dataset.busy;
+
+    // Si está activado "Ver solo marcadas", re-filtra al vuelo
+    const onlyShown = $('#subOnlyShown')?.checked;
+    if (onlyShown) renderRows(getFilteredRows());
+  }
+
+  // ======= Filtros (buscar y solo marcadas) =======
+  function getFilteredRows() {
+    const q = ($('#subSearch')?.value || '').trim().toLowerCase();
+    const onlyShown = $('#subOnlyShown')?.checked;
+    let rows = STATE.rows;
+
+    if (q) {
+      rows = rows.filter(r =>
+        String(r[COLS.NOMBRE] ?? '').toLowerCase().includes(q) ||
+        String(r[COLS.PROPIETARIO] ?? '').toLowerCase().includes(q) ||
+        String(r[COLS.ID_EXT] ?? '').toLowerCase().includes(q)
+      );
+    }
+    if (onlyShown) {
+      rows = rows.filter(isMarcadaMostrar); // Mostrar = 0
+    }
+    return rows;
+  }
+
+  // ======= Render body (tu tabla usa tbodySubSel) =======
+  function renderRows(rowsOrNull) {
+    const tbody = $('#tbodySubSel');
+    if (!tbody) { console.warn('No se encontró #tbodySubSel'); return; }
+
+    const rows = Array.isArray(rowsOrNull) ? rowsOrNull : getFilteredRows();
+
+    if (rows.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:12px;">Sin registros</td></tr>`;
       return;
     }
 
-    const html = rows
-      .map((row) => {
-        const idPk = row?.[PK_COL] ?? '';
-        const idExt = row?.[COLS.ID_EXT] ?? '';
-        const checked = isTerminada(row) ? 'checked' : '';
-        const mostrarVal = row?.[COLS.MOSTRAR] ?? 0;
+    const html = rows.map(row => {
+      const idPk = row?.[PK_COL] ?? '';
+      const idExt = row?.[COLS.ID_EXT] ?? '';
+      const chkTerm = isTerminada(row) ? 'checked' : '';
+      const chkMostrar = isMarcadaMostrar(row) ? 'checked' : ''; // checked => Mostrar=0
 
-        return `
-          <tr>
-            <td style="text-align:center;">
-              <input type="checkbox"
-                     data-id="${esc(idPk)}"
-                     data-idexterno="${esc(idExt)}"
-                     onchange="Subtareas.onChangeChkTerminada(event)"
-                     ${checked}>
-            </td>
-            <td style="text-align:center;">${esc(mostrarVal)}</td>
-            <td>${esc(idExt)}</td>
-            <td>${esc(row[COLS.NOMBRE])}</td>
-            <td>${esc(row[COLS.PROPIETARIO])}</td>
-            <td style="text-align:right;">${esc(row[COLS.DURACION])}</td>
-          </tr>
-        `;
-      })
-      .join('');
+      return `
+        <tr>
+          <td style="text-align:center;">
+            <input type="checkbox"
+                   data-id="${esc(idPk)}"
+                   data-idexterno="${esc(idExt)}"
+                   onchange="Subtareas.onChangeChkTerminada(event)"
+                   ${chkTerm}>
+          </td>
+          <td style="text-align:center;">
+            <input type="checkbox"
+                   data-id="${esc(idPk)}"
+                   data-idexterno="${esc(idExt)}"
+                   onchange="Subtareas.onChangeChkMostrar(event)"
+                   ${chkMostrar}>
+          </td>
+          <td>${esc(idExt)}</td>
+          <td>${esc(row[COLS.NOMBRE])}</td>
+          <td>${esc(row[COLS.PROPIETARIO])}</td>
+          <td style="text-align:right;">${esc(row[COLS.DURACION])}</td>
+        </tr>
+      `;
+    }).join('');
+
     tbody.innerHTML = html;
   }
 
@@ -217,9 +249,15 @@
   const API = {
     init: async function () {
       try {
-        renderHeader();                 // pinta encabezados
+        renderHeader();
         const rows = await fetchSubtareas();
         renderRows(rows);
+
+        // Wire de filtros
+        const search = $('#subSearch');
+        const only = $('#subOnlyShown');
+        search && search.addEventListener('input', () => renderRows(getFilteredRows()));
+        only && only.addEventListener('change', () => renderRows(getFilteredRows()));
       } catch (e) {
         console.error('Subtareas.init error:', e);
       }
@@ -228,7 +266,8 @@
       const rows = await fetchSubtareas();
       renderRows(rows);
     },
-    onChangeChkTerminada
+    onChangeChkTerminada,
+    onChangeChkMostrar
   };
 
   // Exponer en window
