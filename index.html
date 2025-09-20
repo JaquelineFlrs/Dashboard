@@ -157,12 +157,20 @@
     </div>
   </main>
 
-  <!-- App scripts -->
-  <script src="js/config.js"></script>
-  <script src="js/common.js"></script>
-  <script src="js/dashboard.js"></script>
-  <script src="js/subtareas.js"></script>
-  <script src="js/admin.js"></script>
-  <script src="js/burndown.js"></script>
+
+  
+<script>
+  const ver = Date.now();
+  document.write(`
+    <script src="js/config.js?v=${ver}"><\/script>
+    <script src="js/common.js?v=${ver}"><\/script>
+    <script src="js/dashboard.js?v=${ver}"><\/script>
+    <script src="js/subtareas.js?v=${ver}"><\/script>
+    <script src="js/admin.js?v=${ver}"><\/script>
+    <script src="js/burndown.js?v=${ver}"><\/script>
+  `);
+</script>
+
+
 </body>
 </html>
