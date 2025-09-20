@@ -35,18 +35,15 @@
   }
 
   function isTerminada(row) {
-    try {
-      const v = row?.[COLS.FECHA_TERM];
-      return v !== null && v !== undefined && String(v).trim() !== '';
-    } catch {
-      return false;
-    }
+    const v = row?.[COLS.FECHA_TERM];
+    return v !== null && v !== undefined && String(v).trim() !== '';
   }
 
   // ======= Data =======
   async function fetchSubtareas() {
     STATE.loading = true;
     STATE.lastError = null;
+
     const client = getClient();
     if (!client) {
       STATE.loading = false;
@@ -71,7 +68,7 @@
     const { data, error } = await client
       .from('SUBTAREAS')
       .select(selectCols)
-      .eq(COLS.MOSTRAR, 0)
+      .eq(COLS.MOSTRAR, 0) // Solo visibles
       .order(PK_COL, { ascending: true });
 
     STATE.loading = false;
@@ -83,11 +80,12 @@
     }
 
     STATE.rows = Array.isArray(data) ? data : [];
-    window.subtareasRaw = STATE.rows; // si tu sistema la usa
+    // Copia global si tu app la usa en otros lados
+    window.subtareasRaw = STATE.rows;
     return STATE.rows;
   }
 
-  // ======= Update: checkbox terminada =======
+  // ======= Update: checkbox Terminada =======
   async function updateTerminada(idOrExt, checked) {
     try {
       const value = checked ? new Date().toISOString().slice(0, 10) : null;
@@ -159,12 +157,27 @@
     delete el.dataset.busy;
   }
 
-  // ======= Render =======
-  // Columnas en orden: Terminada (checkbox) · Mostrar · ID de Tarea · Nombre · Propietario · Duración
+  // ======= Render (encabezados + filas) =======
+  function renderHeader() {
+    const thead = $('#theadSubSel');
+    if (!thead) return;
+    thead.innerHTML = `
+      <tr>
+        <th>Terminada</th>
+        <th>Mostrar</th>
+        <th>ID de Tarea</th>
+        <th>Nombre</th>
+        <th>Propietario</th>
+        <th>Duración</th>
+      </tr>
+    `;
+  }
+
+  // Columnas visibles: Terminada (checkbox) · Mostrar · ID de Tarea · Nombre · Propietario · Duración
   function renderRows(rows) {
-    const tbody = $('#tblSubtareasBody');
+    const tbody = $('#tbodySubSel'); // <<— apuntamos a tu tabla actual
     if (!tbody) {
-      console.warn('No se encontró #tblSubtareasBody');
+      console.warn('No se encontró #tbodySubSel');
       return;
     }
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -204,6 +217,7 @@
   const API = {
     init: async function () {
       try {
+        renderHeader();                 // pinta encabezados
         const rows = await fetchSubtareas();
         renderRows(rows);
       } catch (e) {
