@@ -120,7 +120,7 @@
       if (body) {
         body.innerHTML = serie.map(r => `
           <tr>
-            <td>${fmtDateTable(r.dia)}</td>
+            <td>${toDM(r.dia)}</td>
             <td style="text-align:center;">${fmtNum(r.horas_restantes_ideal)}</td>
             <td style="text-align:center;">${fmtNum(r.horas_restantes_real)}</td>
           </tr>
