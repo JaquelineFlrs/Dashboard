@@ -197,10 +197,14 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
 }
 
 .bd-head h3 {
-  margin: 0;
-  font-weight: 700;
-  color: #e91e63;              /* rosa (puedes usar var(--accent) si prefieres) */
+ margin: 0 0 12px 0;
+  font-size: 28px;       /* grande pero no tanto como el h1 */
+  font-weight: 800;
+  color: var(--accent);  /* rosa corporativo */
+  letter-spacing: .3px;
 }
+
+
 
 .bd-head .tools label,
 .bd-head .tools button {
