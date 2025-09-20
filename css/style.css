@@ -181,17 +181,49 @@ th,td{padding:10px 12px;border-bottom:1px solid rgba(238,95,160,.25);white-space
   transform: translateY(-50%);
   font-size: 14px;
   color: var(--text-2);
+}/* ===== Layout burndown 8/4 ===== */
+.burndown-grid{
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* 8/4 equivalente */
+  gap: 16px;
+  align-items: start;
 }
 
+/* izquierda: canvas responsivo */
+.bd-left{
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+.bd-left canvas{
+  width: 100% !important;
+  height: auto !important; /* Chart.js ajusta alto con aspect ratio */
+}
+
+/* derecha: tabla con scroll propio */
+.bd-right{
+  max-height: 520px; /* ajusta a gusto */
+  overflow: hidden;  /* el scroll va en la tabla envuelta */
+}
+.bd-right .tbl-wrap{
+  max-height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* centrado de la tabla (como pediste) */
 #tblBurndown th,
-#tblBurndown td {
+#tblBurndown td{
   text-align: center;
   vertical-align: middle;
 }
-#tblBurndown td:nth-child(2),
-#tblBurndown td:nth-child(3) {
-  text-align: center;              /* centrado */
-  font-variant-numeric: tabular-nums; /* mismo ancho por dígito */
+
+/* Responsive: en pantallas chicas se apila */
+@media (max-width: 980px){
+  .burndown-grid{
+    grid-template-columns: 1fr; /* 12/12 */
+  }
+  .bd-right{ max-height: none; }
 }
+
 
 
