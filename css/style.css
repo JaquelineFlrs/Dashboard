@@ -40,7 +40,7 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-se
 .menu-item.active{background:var(--accent);color:#fff;border-color:transparent}
 
 /* ===== Layout ===== */
-.content{padding:0 24px;max-width:1000px;margin:0 auto}
+.content{padding:0 24px;max-width:1800px;margin:0 auto}
 .view{display:none}
 .view.active{display:block}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
