@@ -5,6 +5,20 @@ const CM = window._commons;
 // Estado global para evitar duplicados y carreras
 window.__bd = window.__bd || { chart: null, bound: false, inflight: false };
 
+function fmtDate(d) {
+  try {
+    // si viene como '2025-09-17', lo convierte bonito a locale
+    const dt = new Date(d);
+    if (!isNaN(dt)) return dt.toLocaleDateString();
+  } catch {}
+  return d ?? '';
+}
+function fmtNum(n) {
+  if (n === null || n === undefined) return '-';
+  const x = Number(n);
+  return isFinite(x) ? x.toFixed(2) : '-';
+}
+
 async function buildBurndown(){
   if (window.__bd.inflight) return;      // evita llamadas simultáneas
   window.__bd.inflight = true;
@@ -39,12 +53,11 @@ async function buildBurndown(){
         datasets: [
           {
             label: 'Estimado',
-  data: ideal,
-  borderColor: 'rgba(0, 102, 255, 0.85)',
-  backgroundColor: 'rgba(0, 102, 255, 0.08)',
-  fill: 'origin',
-  tension: 0,          // sin curvatura
- 
+            data: ideal,
+            borderColor: 'rgba(0, 102, 255, 0.85)',
+            backgroundColor: 'rgba(0, 102, 255, 0.08)',
+            fill: 'origin',
+            tension: 0          // sin curvatura
           },
           {
             label: 'Real',
@@ -62,7 +75,7 @@ async function buildBurndown(){
         interaction: { mode: 'index', intersect: false },
         scales: {
           y: { beginAtZero: true, title: { display: true, text: 'Horas (Suma)' } },
-          x: { title: { display: true, text: 'Día' } }
+        x: { title: { display: true, text: 'Día' } }
         },
         plugins: {
           legend: { display: true },
@@ -73,30 +86,27 @@ async function buildBurndown(){
       }
     });
 
-    // Tabla estilo "como la imagen"
+    // ===== Tabla en columnas: Fecha | Estimado | Real =====
     const head = document.getElementById('theadBD');
     const body = document.getElementById('tbodyBD');
-    if (head) head.innerHTML = '<tr><th>Fecha</th><th>Horas</th><th>Tipo</th></tr>';
+
+    if (head) {
+      head.innerHTML = `
+        <tr>
+          <th>Fecha</th>
+          <th>Estimado</th>
+          <th>Real</th>
+        </tr>`;
+    }
+
     if (body) {
-      const filas = [];
-      // Estimado (todas las fechas)
-      serie.forEach(r => filas.push({
-        fecha: r.dia,
-        horas: r.horas_restantes_ideal,
-        tipo:  'Estimado'
-      }));
-      // Real (solo donde hay dato)
-      serie.forEach(r => {
-        if (r.horas_restantes_real !== null) {
-          filas.push({ fecha: r.dia, horas: r.horas_restantes_real, tipo: 'Real' });
-        }
-      });
-      // Ordena por fecha y luego por tipo (Estimado primero)
-      filas.sort((a,b) => (a.fecha<b.fecha? -1 : a.fecha>b.fecha? 1 : (a.tipo>b.tipo?1:-1)));
-      body.innerHTML = filas.map(f =>
-        `<tr><td>${f.fecha}</td><td>${Number(f.horas).toFixed(2)}</td>
-             <td><span class="tag ${f.tipo==='Estimado'?'is-info':'is-danger'}">${f.tipo}</span></td></tr>`
-      ).join('');
+      body.innerHTML = serie.map(r => `
+        <tr>
+          <td>${fmtDate(r.dia)}</td>
+          <td style="text-align:right;">${fmtNum(r.horas_restantes_ideal)}</td>
+          <td style="text-align:right;">${fmtNum(r.horas_restantes_real)}</td>
+        </tr>
+      `).join('');
     }
 
   } finally {
