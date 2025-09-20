@@ -1,188 +1,226 @@
+// js/admin.js (drop-in)
 (function(){
-'use strict';
-const CM = window._commons || {};
-const $id = (id)=> document.getElementById(id);
+  'use strict';
 
-// === Guardar sprint ===
+  const sb = window.db || window.supabase;   // cliente supabase
+  const $  = (s, r=document)=>r.querySelector(s);
 
-async async function guardarSprint(ev){
-  ev.preventDefault();
-  const nombre   = $id('spNombre').value.trim();
-  const inicio   = $id('spInicio').value;
-  const fin      = $id('spFin').value;
-  const totalHrs = parseFloat($id('spTotalHrs').value||'0');
+  const STAGING = {
+    SUB:  'SUBTAREASACTUAL',
+    HIS:  'HISTORIASACTUAL'
+  };
 
-  if(!nombre || !inicio || !fin || !Number.isFinite(totalHrs)){
-    alert('Completa todos los campos del sprint.');
-    return;
+  function msg(txt, ok=true){
+    const el = $('#uploadMsg');
+    if(!el) return;
+    el.style.color = ok ? '#065f46' : '#b91c1c';
+    el.textContent = txt;
   }
 
-  if(!confirm(`¡ATENCIÓN! Esto TRUNCATE: SUBTAREAS, HISTORIAS y SPRINTS, y creará un nuevo sprint ACTIVO.
-¿Deseas continuar?`)) return;
-
-  try{
-    CM.showLoading?.(true);
-
-    // Ajusta a tu flujo real (RPC o deletes directos)
-    await window.db.from('SUBTAREAS').delete();
-    await window.db.from('HISTORIAS').delete();
-    await window.db.from('sprints').delete();
-
-    const { error } = await window.db.from('sprints').insert([{
-      nombre,
-      fecha_inicio: inicio,
-      fecha_fin: fin,
-      total_horas: totalHrs
-    }]);
-    if(error) throw error;
-
-    alert('Sprint guardado.');
-  }catch(e){
-    console.error(e);
-    alert('No se pudo guardar el sprint: '+(e.message||e));
-  }finally{
-    CM.showLoading?.(false);
-  }
-}
-
-  if(!confirm(`¡ATENCIÓN! Esto TRUNCATE: SUBTAREAS, HISTORIAS y SPRINTS, y creará un nuevo sprint ACTIVO.
-¿Deseas continuar?`)) return;
-
-  try{
-    CM.showLoading?.(true);
-
-    // Borra datos existentes
-    await window.db.from('SUBTAREAS').delete();
-    await window.db.from('HISTORIAS').delete();
-    await window.db.from('sprints').delete();
-
-    // Inserta sprint nuevo
-    const { error } = await window.db.from('sprints').insert([{
-      nombre,
-      fecha_inicio: inicio,
-      fecha_fin: fin,
-      total_horas: totalHrs
-    }]);
-    if(error) throw error;
-
-    alert('Sprint guardado.');
-  }catch(e){
-    console.error(e);
-    alert('No se pudo guardar el sprint: '+(e.message||e));
-  }finally{
-    CM.showLoading?.(false);
-  }
-}
-
-// === Helpers para CSV ===
-
-function parseCsvFile(file){
-  return new Promise((resolve, reject)=>{
-    if(!file) return resolve([]);
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: h => (h||'').replace(/\ufeff/g,'').trim(),
-      transform: v => (typeof v === 'string' ? v.trim() : v),
-      complete: (res)=> resolve(res.data),
-      error: reject
+  // ---- CSV → array de objetos
+  function parseCsv(file){
+    return new Promise((resolve,reject)=>{
+      if(!file) return resolve({data:[], meta:{}});
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res)=> resolve(res),
+        error: reject
+      });
     });
-  });
-}
+  }
 
-function normalizeRows(rows){
-  return rows.map(r=>{
-    const out = {};
-    for(const k in r){
-      const v = r[k];
-      if(v === '') out[k] = null;
-      else if(typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)) out[k] = Number(v);
-      else out[k] = v;
+  // ---- Inserción por lotes (upsert si PK existe)
+  async function batchUpsert(table, rows, onConflictCols, chunkSize=500){
+    let total = 0;
+    for(let i=0; i<rows.length; i+=chunkSize){
+      const slice = rows.slice(i, i+chunkSize);
+      const { error, count } = await sb
+        .from(table)
+        .upsert(slice, { onConflict: onConflictCols, ignoreDuplicates: false, count: 'exact' });
+      if(error){ throw error; }
+      total += (count ?? slice.length);
     }
-    return out;
-  });
-}
-    return out;
-  });
-}
+    return total;
+  }
 
-// === Cargar CSVs ===
+  // ---- Limpia staging (opcional si prefieres hacerlo antes)
+  async function clearStaging(table){
+    const { error } = await sb.from(table).delete().neq('ID de Tarea', '__never__');
+    if(error) console.warn('clearStaging', table, error);
+  }
 
-async async function cargarSubtareas(){
-  const file = $id('csvSubtareas').files[0];
-  if(!file){ alert('Selecciona un CSV de Subtareas.'); return; }
-  try{
-    CM.showLoading?.(true);
-// TODO: moved into async function ->     const raw = await parseCsvFile(file);
-    const rows = normalizeRows(raw);
-    const valid = [];
-    const skipped = [];
-    for(const r of rows){
-      const idVal = r["ID de Tarea"];
-      if(idVal === null || idVal === undefined || idVal === '') skipped.push(r);
-      else valid.push(r);
+  // ---- Cargar CSV de SUBTAREAS → SUBTAREASACTUAL y luego sync
+  async function handleCargarSubtareas(){
+    try{
+      msg('Procesando Subtareas…'); 
+      const file = $('#csvSubtareas')?.files?.[0];
+      if(!file){ msg('Selecciona un CSV de Subtareas.', false); return; }
+
+      const { data, errors } = await parseCsv(file);
+      if(errors?.length){ console.error(errors); msg('CSV con errores (Subtareas). Revisa columnas.', false); return; }
+      if(!Array.isArray(data) || data.length===0){ msg('CSV vacío (Subtareas).', false); return; }
+
+      // Limpia staging para evitar residuos
+      await clearStaging(STAGING.SUB);
+
+      // Upsert a staging (PK = "ID de Tarea")
+      const inserted = await batchUpsert(STAGING.SUB, data, '"ID de Tarea"');
+      msg(`Subtareas subidas a staging: ${inserted}. Traspasando…`);
+
+      // RPC de sync
+      const { data: sync, error } = await sb.rpc('fn_sync_subtareas');
+      if(error){ throw error; }
+
+      const u = sync?.[0]?.updated_count ?? 0;
+      const ins = sync?.[0]?.inserted_count ?? 0;
+      const del = sync?.[0]?.deleted_staging ?? 0;
+
+      msg(`OK Subtareas → Final. Actualizadas: ${u}, Insertadas: ${ins}, Limpiadas staging: ${del}.`);
+    }catch(e){
+      console.error(e);
+      msg('Error al cargar/sincronizar Subtareas.', false);
     }
-    if(valid.length === 0){
-      alert('Ninguna fila tiene "ID de Tarea". Revisa los encabezados del CSV.');
+  }
+
+  // ---- Cargar CSV de HISTORIAS → HISTORIASACTUAL y luego sync
+  async function handleCargarHistorias(){
+    try{
+      msg('Procesando Historias…'); 
+      const file = $('#csvHistorias')?.files?.[0];
+      if(!file){ msg('Selecciona un CSV de Historias.', false); return; }
+
+      const { data, errors } = await parseCsv(file);
+      if(errors?.length){ console.error(errors); msg('CSV con errores (Historias). Revisa columnas.', false); return; }
+      if(!Array.isArray(data) || data.length===0){ msg('CSV vacío (Historias).', false); return; }
+
+      await clearStaging(STAGING.HIS);
+
+      // Upsert a staging (HISTORIASACTUAL no tiene PK explícita, pero usamos onConflict por "ID de Tarea" si está definido en BD)
+      const inserted = await batchUpsert(STAGING.HIS, data, '"ID de Tarea"');
+      msg(`Historias subidas a staging: ${inserted}. Traspasando…`);
+
+      // RPC de sync
+      const { data: sync, error } = await sb.rpc('fn_sync_historias');
+      if(error){ throw error; }
+
+      const ins = sync?.[0]?.inserted_count ?? 0;
+      const del = sync?.[0]?.deleted_staging ?? 0;
+
+      msg(`OK Historias → Final. Insertadas: ${ins}, Limpiadas staging: ${del}.`);
+    }catch(e){
+      console.error(e);
+      msg('Error al cargar/sincronizar Historias.', false);
+    }
+  }
+
+  // ---- Solo sincronizar (si ya cargaste antes)
+  async function handleSincronizar(){
+    try{
+      msg('Sincronizando staging existente…');
+
+      const res = [];
+
+      // correr historias (si hay algo en staging)
+      const { data: hcount, error: ehc } = await sb.from(STAGING.HIS).select('count', { count: 'exact', head: true });
+      if(!ehc && (hcount?.length===0 || hcount === null)) {
+        // Algunos clientes devuelven null con head:true. Consultemos una fila:
+        const { data: h1 } = await sb.from(STAGING.HIS).select('ID de Tarea').limit(1);
+        if ((h1?.length ?? 0) > 0) {
+          const { data, error } = await sb.rpc('fn_sync_historias');
+          if(!error) res.push(`Historias OK: +${data?.[0]?.inserted_count ?? 0}`);
+        }
+      } else {
+        const { data: h1 } = await sb.from(STAGING.HIS).select('ID de Tarea').limit(1);
+        if ((h1?.length ?? 0) > 0) {
+          const { data, error } = await sb.rpc('fn_sync_historias');
+          if(!error) res.push(`Historias OK: +${data?.[0]?.inserted_count ?? 0}`);
+        }
+      }
+
+      // correr subtareas (si hay algo en staging)
+      const { data: s1 } = await sb.from(STAGING.SUB).select('ID de Tarea').limit(1);
+      if ((s1?.length ?? 0) > 0) {
+        const { data, error } = await sb.rpc('fn_sync_subtareas');
+        if(!error) res.push(`Subtareas OK: +${data?.[0]?.inserted_count ?? 0} / upd ${data?.[0]?.updated_count ?? 0}`);
+      }
+
+      msg(res.length ? res.join(' | ') : 'No había nada en staging.');
+    }catch(e){
+      console.error(e);
+      msg('Error al sincronizar.', false);
+    }
+  }
+
+  // ---- Cargar ambos (no obliga a tener los dos archivos)
+  async function handleCargarTodo(){
+    const hasSub = !!$('#csvSubtareas')?.files?.[0];
+    const hasHis = !!$('#csvHistorias')?.files?.[0];
+
+    if(!hasSub && !hasHis){
+      msg('Selecciona al menos un CSV (Subtareas o Historias).', false);
       return;
     }
-// TODO: moved into async function ->     await window.db.from('SUBTAREASACTUAL').delete();
-// TODO: moved into async function ->     const { error } = await window.db.from('SUBTAREASACTUAL').insert(valid);
-    if(error) throw error;
-    $id('uploadMsg').textContent = `Subtareas cargadas: ${valid.length}. Omitidas por falta de "ID de Tarea": ${skipped.length}`;
-  }catch(e){
-    console.error(e);
-    alert('Error cargando Subtareas: '+(e.message||e));
-  }finally{ CM.showLoading?.(false); }
-}
+    if(hasSub) await handleCargarSubtareas();
+    if(hasHis) await handleCargarHistorias();
+  }
 
-async async function cargarHistorias(){
-  const file = $id('csvHistorias').files[0];
-  if(!file){ alert('Selecciona un CSV de Historias.'); return; }
-  try{
-    CM.showLoading?.(true);
-// TODO: moved into async function ->     const rows = normalizeRows(await parseCsvFile(file));
-// TODO: moved into async function ->     await window.db.from('HISTORIASACTUAL').delete().neq('x','y');
-// TODO: moved into async function ->     const { error } = await window.db.from('HISTORIASACTUAL').insert(rows);
-    if(error) throw error;
-    $id('uploadMsg').textContent = `Historias cargadas: ${rows.length}`;
-  }catch(e){
-    console.error(e);
-    alert('Error cargando Historias: '+(e.message||e));
-  }finally{ CM.showLoading?.(false); }
-}
+  // ---- Nuevo sprint (borra datos + crea sprint)
+  async function handleNuevoSprint(ev){
+    ev?.preventDefault?.();
+    try{
+      const nombre = $('#spNombre')?.value?.trim();
+      const fIni   = $('#spInicio')?.value;
+      const fFin   = $('#spFin')?.value;
+      const total  = Number($('#spTotalHrs')?.value);
 
-async async function sincronizar(){
-  try{
-    CM.showLoading?.(true);
-    if(window.db.rpc){
-      const { error } = await window.db.rpc('fn_sync_simple');
-      if(error) throw error;
-      alert('Sincronización ejecutada.');
-    }else{
-      alert('Sincronización omitida (no hay RPC disponible).');
+      if(!nombre || !fIni || !fFin || !isFinite(total)){
+        msg('Completa nombre, fechas y total de horas.', false);
+        return;
+      }
+      msg('Creando sprint y limpiando datos…');
+
+      const { data, error } = await sb.rpc('fn_reset_sprint', {
+        p_nombre: nombre,
+        p_inicio: fIni,
+        p_fin:    fFin,
+        p_total:  total
+      });
+      if(error){ throw error; }
+
+      const id  = data?.[0]?.new_sprint_id ?? '(?)';
+      const ds  = data?.[0]?.subtareas_borradas ?? 0;
+      const dh  = data?.[0]?.historias_borradas ?? 0;
+
+      msg(`Sprint #${id} creado. Borradas: Subtareas=${ds}, Historias=${dh}.`);
+
+      // (opcional) limpiar inputs
+      // $('#frmSprint')?.reset();
+
+      // (opcional) refrescar dashboard/burndown si manejas hooks globales
+      if(window._hooks?.['view-dashboard']) window._hooks['view-dashboard']();
+      if(window._hooks?.['view-burndown'])  window._hooks['view-burndown']();
+
+    }catch(e){
+      console.error(e);
+      msg('Error al crear sprint.', false);
     }
-  }catch(e){
-    console.warn(e);
-    alert('No se pudo sincronizar: '+(e.message||e));
-  }finally{ CM.showLoading?.(false); }
-}
+  }
 
-async async function cargarAmbosYSync(){
-// TODO: moved into async function ->   if($id('csvSubtareas').files[0]) await cargarSubtareas();
-// TODO: moved into async function ->   if($id('csvHistorias').files[0]) await cargarHistorias();
-// TODO: moved into async function ->   await sincronizar();
-}
+  // ---- Bind UI
+  function bind(){
+    $('#frmSprint')?.addEventListener('submit', handleNuevoSprint);
+    $('#btnGuardarSprint')?.addEventListener('click', handleNuevoSprint);
 
-// === Eventos ===
-$id('frmSprint').addEventListener('submit', guardarSprint);
-$id('btnCargarSubtareas').addEventListener('click', cargarSubtareas);
-$id('btnCargarHistorias').addEventListener('click', cargarHistorias);
-$id('btnSincronizar').addEventListener('click', sincronizar);
-$id('btnCargarTodo').addEventListener('click', cargarAmbosYSync);
+    $('#btnCargarSubtareas')?.addEventListener('click', handleCargarSubtareas);
+    $('#btnCargarHistorias')?.addEventListener('click', handleCargarHistorias);
+    $('#btnSincronizar')?.addEventListener('click', handleSincronizar);
+    $('#btnCargarTodo')?.addEventListener('click', handleCargarTodo);
+  }
 
-// Hook al entrar
-window._hooks = window._hooks || {};
-window._hooks['view-admin'] = ()=>{};
-
+  if(document.readyState === 'complete' || document.readyState === 'interactive'){
+    setTimeout(bind, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', bind, { once: true });
+  }
 })();
