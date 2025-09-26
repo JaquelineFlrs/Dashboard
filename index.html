@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sprint Planner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-6xl mx-auto p-4">
+    <header class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-bold">Sprint Planner</h1>
+      <div class="flex gap-2">
+        <button id="btnSettings" class="px-3 py-2 rounded-2xl border shadow bg-white">Ajustes</button>
+      </div>
+    </header>
+
+    <nav class="flex gap-2 mb-4">
+      <button data-tab="dashboard" class="tab px-3 py-2 rounded-2xl bg-white border shadow">Dashboard</button>
+      <button data-tab="config" class="tab px-3 py-2 rounded-2xl bg-white border shadow">Configurador</button>
+      <button data-tab="mgmt" class="tab px-3 py-2 rounded-2xl bg-white border shadow">Management</button>
+      <button data-tab="cotejo" class="tab px-3 py-2 rounded-2xl bg-white border shadow">Cotejo</button>
+      <button data-tab="entrega" class="tab px-3 py-2 rounded-2xl bg-white border shadow">Entrega</button>
+    </nav>
+
+    <!-- Tabs content -->
+    <section id="dashboard" class="tab-panel hidden">
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="p-4 bg-white border rounded-2xl shadow">
+          <div class="text-sm text-slate-500">Horas Planeadas</div>
+          <div id="kpiPlaneadas" class="text-3xl font-semibold">–</div>
+        </div>
+        <div class="p-4 bg-white border rounded-2xl shadow">
+          <div class="text-sm text-slate-500">Horas Terminadas</div>
+          <div id="kpiTerminadas" class="text-3xl font-semibold">–</div>
+        </div>
+        <div class="p-4 bg-white border rounded-2xl shadow">
+          <div class="text-sm text-slate-500">Horas Pendientes</div>
+          <div id="kpiPendientes" class="text-3xl font-semibold">–</div>
+        </div>
+      </div>
+      <div class="mt-4 p-4 bg-white border rounded-2xl shadow">
+        <h2 class="font-semibold mb-2">Burndown</h2>
+        <div class="text-sm text-slate-500 mb-2">Tabla simple (estimado vs real)</div>
+        <table id="tblBurndown" class="w-full text-sm">
+          <thead><tr class="text-left"><th>#</th><th>Fecha</th><th>Hrs Reales</th><th>Hrs Estimadas</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="config" class="tab-panel hidden">
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="p-4 bg-white border rounded-2xl shadow">
+          <h2 class="font-semibold mb-2">Crear sprint</h2>
+          <div class="grid gap-2">
+            <input id="sprintNombre" class="border rounded px-2 py-1" placeholder="Nombre del sprint" />
+            <input id="sprintInicio" type="date" class="border rounded px-2 py-1" />
+            <input id="sprintFin" type="date" class="border rounded px-2 py-1" />
+            <button id="btnCrearSprint" class="px-3 py-2 rounded-2xl bg-slate-900 text-white">Crear</button>
+            <div id="sprintMsg" class="text-sm text-slate-500"></div>
+          </div>
+        </div>
+        <div class="p-4 bg-white border rounded-2xl shadow">
+          <h2 class="font-semibold mb-2">Participantes</h2>
+          <div class="flex gap-2">
+            <input id="partNombre" class="border rounded px-2 py-1" placeholder="Nombre" />
+            <input id="partHoras" class="border rounded px-2 py-1" placeholder="Horas/día (default 8)" />
+            <button id="btnAddParticipante" class="px-3 py-2 rounded-2xl bg-slate-900 text-white">Agregar</button>
+          </div>
+          <div id="participantesList" class="mt-2 text-sm"></div>
+        </div>
+      </div>
+
+      <div class="mt-4 p-4 bg-white border rounded-2xl shadow">
+        <h2 class="font-semibold mb-2">Carga CSV (placeholder)</h2>
+        <p class="text-sm text-slate-500">En producción, sube a <code>zoho_historia_raw</code> y <code>zoho_subtarea_raw</code> y corre <code>fn_sync_*</code>.</p>
+        <button id="btnSync" class="mt-2 px-3 py-2 rounded-2xl bg-slate-900 text-white">Sincronizar sprint activo</button>
+        <div id="syncMsg" class="text-sm text-slate-500"></div>
+      </div>
+    </section>
+
+    <section id="mgmt" class="tab-panel hidden">
+      <div class="p-4 bg-white border rounded-2xl shadow">
+        <h2 class="font-semibold mb-2">Subtareas (visibilidad / terminado)</h2>
+        <div id="mgmtList" class="text-sm"></div>
+      </div>
+    </section>
+
+    <section id="cotejo" class="tab-panel hidden">
+      <div class="p-4 bg-white border rounded-2xl shadow">
+        <h2 class="font-semibold mb-2">Cotejo</h2>
+        <div id="cotejoBox" class="text-sm"></div>
+      </div>
+    </section>
+
+    <section id="entrega" class="tab-panel hidden">
+      <div class="p-4 bg-white border rounded-2xl shadow">
+        <h2 class="font-semibold mb-2">Entrega de historias</h2>
+        <div id="entregaList" class="text-sm"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Settings Modal -->
+  <dialog id="dlgSettings" class="rounded-2xl p-0 w-full max-w-md">
+    <form method="dialog" class="p-4 bg-white rounded-2xl border shadow">
+      <h3 class="font-semibold mb-2">Ajustes</h3>
+      <label class="text-sm block mb-1">SUPABASE_URL</label>
+      <input id="inpUrl" class="border rounded px-2 py-1 w-full mb-2" placeholder="https://...supabase.co" />
+      <label class="text-sm block mb-1">SUPABASE_ANON_KEY</label>
+      <input id="inpKey" class="border rounded px-2 py-1 w-full mb-2" placeholder="ey..." />
+      <div class="flex justify-end gap-2 mt-2">
+        <button class="px-3 py-2 rounded-2xl border">Cancelar</button>
+        <button id="btnSaveSettings" class="px-3 py-2 rounded-2xl bg-slate-900 text-white">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="./app.js"></script>
+  <script>
+    // simple tabs
+    const tabs = document.querySelectorAll('.tab');
+    const panels = document.querySelectorAll('.tab-panel');
+    function activate(id){
+      panels.forEach(p => p.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+    tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+    activate('dashboard');
+  </script>
+</body>
+</html>
