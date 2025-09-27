@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sprint Planner — GH Pages</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:,">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.10/dist/umd/supabase.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    .card { @apply p-4 bg-white border rounded-2xl shadow; }
+    .btn  { @apply px-3 py-2 rounded-2xl; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-7xl mx-auto p-4">
+    <header class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-bold">Sprint Planner (GH Pages)</h1>
+      <div class="flex gap-2">
+        <button id="btnSync" class="btn bg-slate-900 text-white">Sincronizar</button>
+        <button id="btnAjustes" class="btn border">Ajustes</button>
+      </div>
+    </header>
+
+    <div id="ajustes" class="card mb-4 hidden">
+      <div class="grid md:grid-cols-3 gap-3">
+        <div><label class="text-xs text-slate-500">SUPABASE_URL</label><input id="inUrl" class="border rounded px-2 py-1 w-full"/></div>
+        <div><label class="text-xs text-slate-500">SUPABASE_ANON_KEY</label><input id="inKey" class="border rounded px-2 py-1 w-full"/></div>
+        <div class="flex items-end"><button id="btnGuardar" class="btn border w-full">Guardar</button></div>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">Se guardan en tu navegador (localStorage). Por defecto ya vienen preconfigurados.</p>
+    </div>
+
+    <nav class="flex flex-wrap gap-2 mb-4">
+      <button data-tab="dashboard" class="tab btn bg-white border shadow">Dashboard</button>
+      <button data-tab="config" class="tab btn bg-white border shadow">Configurador</button>
+      <button data-tab="csv" class="tab btn bg-white border shadow">Carga CSV</button>
+      <button data-tab="mgmt" class="tab btn bg-white border shadow">Management</button>
+      <button data-tab="cotejo" class="tab btn bg-white border shadow">Cotejo</button>
+      <button data-tab="entrega" class="tab btn bg-white border shadow">Entrega</button>
+    </nav>
+
+    <section id="dashboard" class="tab-panel hidden">
+      <div class="grid md:grid-cols-4 gap-4">
+        <div class="card"><div class="text-sm text-slate-500">Horas Planeadas</div><div id="kpiPlaneadas" class="text-3xl font-semibold">–</div></div>
+        <div class="card"><div class="text-sm text-slate-500">Horas Terminadas</div><div id="kpiTerminadas" class="text-3xl font-semibold">–</div></div>
+        <div class="card"><div class="text-sm text-slate-500">Horas Pendientes</div><div id="kpiPendientes" class="text-3xl font-semibold">–</div></div>
+        <div class="card"><div class="text-sm text-slate-500">% Avance</div><div id="kpiAvance" class="text-3xl font-semibold">–</div></div>
+      </div>
+      <div class="mt-4 card">
+        <div class="flex items-center justify-between"><h2 class="font-semibold">Burndown</h2><div class="text-sm text-slate-500" id="bdRange"></div></div>
+        <canvas id="chartBurndown" height="120"></canvas>
+      </div>
+      <div class="mt-4 grid md:grid-cols-2 gap-4">
+        <div class="card"><h3 class="font-semibold mb-2">Resumen por Persona</h3><div class="overflow-auto"><table id="tblPorPersona" class="w-full text-sm"></table></div></div>
+        <div class="card"><h3 class="font-semibold mb-2">Resumen por Lista</h3><div class="overflow-auto"><table id="tblPorLista" class="w-full text-sm"></table></div></div>
+      </div>
+    </section>
+
+    <section id="config" class="tab-panel hidden">
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="card">
+          <h2 class="font-semibold mb-2">Crear sprint</h2>
+          <div class="grid gap-2">
+            <input id="sprintNombre" class="border rounded px-2 py-1" placeholder="Nombre del sprint" />
+            <label class="text-xs text-slate-500">Inicio</label><input id="sprintInicio" type="date" class="border rounded px-2 py-1" />
+            <label class="text-xs text-slate-500">Fin</label><input id="sprintFin" type="date" class="border rounded px-2 py-1" />
+            <button id="btnCrearSprint" class="btn bg-slate-900 text-white">Crear</button>
+            <div id="sprintMsg" class="text-sm text-slate-500"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="font-semibold mb-2">Participantes</h2>
+          <div class="flex gap-2 mb-2">
+            <input id="partNombre" class="border rounded px-2 py-1" placeholder="Nombre" />
+            <input id="partHoras" class="border rounded px-2 py-1 w-28" placeholder="Horas/día (8)" />
+            <button id="btnAddParticipante" class="btn bg-slate-900 text-white">Agregar</button>
+          </div>
+          <div id="participantesList" class="mt-2 text-sm"></div>
+          <div class="mt-3">
+            <h3 class="font-semibold text-sm mb-1">Ausencias</h3>
+            <div class="flex gap-2">
+              <input id="ausNombre" class="border rounded px-2 py-1" placeholder="Nombre" />
+              <input id="ausFecha" type="date" class="border rounded px-2 py-1" />
+              <input id="ausHoras" class="border rounded px-2 py-1 w-28" placeholder="Horas" />
+              <button id="btnAddAusencia" class="btn bg-slate-900 text-white">Agregar</button>
+            </div>
+            <div id="ausenciasList" class="text-xs text-slate-500 mt-2"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="font-semibold mb-2">Acciones</h2>
+          <button id="btnCerrarSprint" class="btn border">Cerrar Sprint</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="csv" class="tab-panel hidden">
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="card">
+          <h2 class="font-semibold mb-2">Historias (CSV)</h2>
+          <input id="csvHistorias" type="file" accept=".csv" class="mb-2">
+          <button id="btnUploadHistorias" class="btn bg-slate-900 text-white">Subir</button>
+        </div>
+        <div class="card">
+          <h2 class="font-semibold mb-2">Subtareas (CSV)</h2>
+          <input id="csvSubtareas" type="file" accept=".csv" class="mb-2">
+          <button id="btnUploadSubtareas" class="btn bg-slate-900 text-white">Subir</button>
+        </div>
+      </div>
+      <div class="mt-4 card">
+        <h2 class="font-semibold mb-2">Sincronización</h2>
+        <button id="btnSyncCsv" class="btn bg-slate-900 text-white">Sincronizar al sprint activo</button>
+        <div id="syncMsg" class="text-sm text-slate-500"></div>
+      </div>
+    </section>
+
+    <section id="mgmt" class="tab-panel hidden">
+      <div class="card">
+        <div class="flex flex-wrap gap-2 items-end mb-3">
+          <div><label class="text-xs text-slate-500">Lista</label><input id="fLista" class="border rounded px-2 py-1" placeholder="(todas)" /></div>
+          <div><label class="text-xs text-slate-500">Estado</label><input id="fEstado" class="border rounded px-2 py-1" placeholder="(todos)" /></div>
+          <div><label class="text-xs text-slate-500">Persona</label><input id="fPersona" class="border rounded px-2 py-1" placeholder="(todas)" /></div>
+          <button id="btnFiltrarMgmt" class="btn border">Filtrar</button>
+          <button id="btnExportMgmt" class="btn border">Exportar CSV</button>
+        </div>
+        <div id="mgmtList" class="text-sm"></div>
+      </div>
+    </section>
+
+    <section id="cotejo" class="tab-panel hidden">
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="card">
+          <h3 class="font-semibold mb-2">Totales</h3>
+          <div id="cotejoBox" class="text-sm"></div>
+          <button id="btnExportCotejo" class="btn border mt-2">Exportar Excel</button>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-2">Por Lista</h3>
+          <div class="overflow-auto"><table id="tblCotejoLista" class="w-full text-sm"></table></div>
+        </div>
+      </div>
+      <div class="mt-4 card">
+        <h3 class="font-semibold mb-2">Por Historia</h3>
+        <div class="overflow-auto"><table id="tblCotejoHistoria" class="w-full text-sm"></table></div>
+      </div>
+    </section>
+
+    <section id="entrega" class="tab-panel hidden">
+      <div class="card">
+        <h2 class="font-semibold mb-2">Entrega de historias</h2>
+        <div id="entregaList" class="text-sm"></div>
+      </div>
+    </section>
+  </div>
+  <script src="./app.js"></script>
+  <script>
+    const tabs = document.querySelectorAll('.tab'); const panels = document.querySelectorAll('.tab-panel');
+    function activate(id){ panels.forEach(p => p.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+    tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab))); activate('dashboard');
+    const ajustes = document.getElementById('ajustes');
+    document.getElementById('btnAjustes').onclick = () => ajustes.classList.toggle('hidden');
+  </script>
+</body>
+</html>
