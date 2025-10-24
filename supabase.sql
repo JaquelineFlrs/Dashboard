@@ -1,4 +1,4 @@
--- SUPABASE – FULL v4 (ES) – Real null en futuros, calcular hoy y recálculo
+-- SUPABASE – FULL v5 (ES) – Estructura completa a la fecha
 create extension if not exists pgcrypto;
 
 -- ===================
@@ -47,17 +47,22 @@ create table if not exists burndown_real (
   sprint_id uuid not null references sprints(id) on delete cascade,
   dia       int  not null,
   fecha     date not null,
-  horas     int  null, -- ahora permite NULL para no pintar futuros
+  horas     int  null,
   unique (sprint_id, fecha),
   unique (sprint_id, dia)
 );
 
--- Ajuste por si viene de versiones anteriores
-do $$ begin
-  if exists (select 1 from information_schema.columns where table_name='burndown_real' and column_name='horas' and is_nullable='NO') then
-    alter table burndown_real alter column horas drop not null;
-  end if;
-end $$;
+-- Índices de seguridad (si no existieran)
+create unique index if not exists burndown_real_sprint_dia_key
+  on burndown_real (sprint_id, dia);
+create unique index if not exists burndown_real_sprint_fecha_key
+  on burndown_real (sprint_id, fecha);
+
+-- Capacidad personalizada (opcional)
+create table if not exists capacidad_persona (
+  propietario text primary key,
+  horas_diarias int not null check (horas_diarias >= 0)
+);
 
 -- ===================
 -- Vistas
@@ -125,6 +130,7 @@ left join subtareas st on st.sprint_id = sp.id and st.oculto = false
 group by sp.id, coalesce(st.fecha_terminacion::date, st.fecha_creacion::date)
 order by fecha;
 
+-- Avance por persona (base)
 create or replace view avance_por_persona as
 select 
   sp.id as sprint_id,
@@ -144,6 +150,40 @@ select
 from sprints sp
 left join subtareas st on st.sprint_id = sp.id and st.oculto = false
 group by sp.id, st.propietario;
+
+-- Avance por proyecto (base)
+create or replace view avance_por_proyecto as
+select
+  sp.id as sprint_id,
+  h.proyecto,
+  sum(st.duracion_h) as horas_totales,
+  sum(case 
+        when (st.terminado_manual 
+              or st.estado_personalizado ilike '%completado%' 
+              or st.fecha_terminacion is not null)
+        then st.duracion_h else 0 end) as horas_terminadas,
+  sum(st.duracion_h) 
+    - sum(case 
+            when (st.terminado_manual 
+                  or st.estado_personalizado ilike '%completado%' 
+                  or st.fecha_terminacion is not null)
+            then st.duracion_h else 0 end) as horas_pendientes,
+  case when sum(st.duracion_h) = 0 then 0
+       else round(
+         ( sum(case 
+                 when (st.terminado_manual 
+                       or st.estado_personalizado ilike '%completado%' 
+                       or st.fecha_terminacion is not null)
+                 then st.duracion_h else 0 end)::numeric * 100
+         ) / nullif(sum(st.duracion_h),0), 2)
+  end as porcentaje_avance
+from sprints sp
+join historias h on h.sprint_id = sp.id
+left join subtareas st 
+  on st.sprint_id = sp.id
+ and st.historia_tarea_id = h.tarea_id
+ and st.oculto = false
+group by sp.id, h.proyecto;
 
 -- ===================
 -- Funciones
@@ -196,7 +236,6 @@ begin
   on conflict (sprint_id, dia) do update set fecha = excluded.fecha, horas = excluded.horas;
 end; $$ language plpgsql;
 
--- Variante que acepta NULL para horas (para borrar/limpiar)
 create or replace function set_burndown_real_nullable(p_sprint uuid, p_fecha date, p_dia int, p_horas int) returns void as $$
 begin
   insert into burndown_real (sprint_id, fecha, dia, horas)
@@ -204,7 +243,7 @@ begin
   on conflict (sprint_id, dia) do update set fecha = excluded.fecha, horas = excluded.horas;
 end; $$ language plpgsql;
 
--- Inicializa burndown_real: día 0 = estimado día 0; resto = NULL (no pintar)
+-- Inicializa burndown_real: día 0 = estimado; resto = NULL
 create or replace function init_burndown_real(p_sprint uuid) returns void as $$
 declare
   rec record;
@@ -224,7 +263,7 @@ begin
   end loop;
 end; $$ language plpgsql;
 
--- Avance por persona con capacidad y diferencia
+-- Avance por persona con capacidad estándar (7h)
 create or replace function avance_por_persona_extendido(p_sprint uuid)
 returns table(
   propietario text,
@@ -240,6 +279,7 @@ declare
   dias int; horas_dia int := 7;
 begin
   select fecha_fin into ff from sprints where id = p_sprint;
+
   select greatest(0, count(*))
   into dias
   from generate_series(hoy, ff, interval '1 day') gs
@@ -256,63 +296,120 @@ begin
     dias * horas_dia as capacidad,
     (a.horas_pendientes - dias * horas_dia) as diferencia
   from avance_por_persona a
-  where a.sprint_id = p_sprint;
+  where a.sprint_id = p_sprint
+  order by a.propietario;
+end; $$ language plpgsql;
+
+-- Avance por persona con capacidad personalizada
+create or replace function avance_por_persona_extendido_cap(p_sprint uuid)
+returns table(
+  propietario text,
+  horas_totales int,
+  horas_terminadas int,
+  horas_pendientes int,
+  dias_restantes int,
+  horas_diarias int,
+  capacidad int,
+  diferencia int
+) as $$
+declare
+  ff date; hoy date := current_date; dias int;
+begin
+  select fecha_fin into ff from sprints where id = p_sprint;
+
+  select greatest(0, count(*)) into dias
+  from generate_series(hoy, ff, interval '1 day') gs
+  where extract(isodow from gs) < 6
+    and gs::date not in (select fecha from festivos_mx);
+
+  return query
+  select 
+    a.propietario,
+    a.horas_totales,
+    a.horas_terminadas,
+    a.horas_pendientes,
+    dias as dias_restantes,
+    coalesce(cp.horas_diarias, 7) as horas_diarias,
+    dias * coalesce(cp.horas_diarias, 7) as capacidad,
+    (a.horas_pendientes - dias * coalesce(cp.horas_diarias, 7)) as diferencia
+  from avance_por_persona a
+  left join capacidad_persona cp on cp.propietario = a.propietario
+  where a.sprint_id = p_sprint
+  order by a.propietario;
 end; $$ language plpgsql;
 
 -- ===================
--- RLS abierta para pruebas
+-- RLS abierta (solo para pruebas)
 -- ===================
 alter table sprints enable row level security;
 alter table historias enable row level security;
 alter table subtareas enable row level security;
 alter table festivos_mx enable row level security;
 alter table burndown_real enable row level security;
+alter table capacidad_persona enable row level security;
 
 -- reset políticas
-drop policy if exists sprints_select_all on sprints;
-drop policy if exists sprints_insert_all on sprints;
-drop policy if exists sprints_update_all on sprints;
-drop policy if exists sprints_delete_all on sprints;
-create policy sprints_select_all on sprints for select using (true);
-create policy sprints_insert_all on sprints for insert with check (true);
-create policy sprints_update_all on sprints for update using (true);
-create policy sprints_delete_all on sprints for delete using (true);
+do $$ begin
+  -- sprints
+  drop policy if exists sprints_select_all on sprints;
+  drop policy if exists sprints_insert_all on sprints;
+  drop policy if exists sprints_update_all on sprints;
+  drop policy if exists sprints_delete_all on sprints;
+  create policy sprints_select_all on sprints for select using (true);
+  create policy sprints_insert_all on sprints for insert with check (true);
+  create policy sprints_update_all on sprints for update using (true);
+  create policy sprints_delete_all on sprints for delete using (true);
 
-drop policy if exists historias_select_all on historias;
-drop policy if exists historias_insert_all on historias;
-drop policy if exists historias_update_all on historias;
-drop policy if exists historias_delete_all on historias;
-create policy historias_select_all on historias for select using (true);
-create policy historias_insert_all on historias for insert with check (true);
-create policy historias_update_all on historias for update using (true);
-create policy historias_delete_all on historias for delete using (true);
+  -- historias
+  drop policy if exists historias_select_all on historias;
+  drop policy if exists historias_insert_all on historias;
+  drop policy if exists historias_update_all on historias;
+  drop policy if exists historias_delete_all on historias;
+  create policy historias_select_all on historias for select using (true);
+  create policy historias_insert_all on historias for insert with check (true);
+  create policy historias_update_all on historias for update using (true);
+  create policy historias_delete_all on historias for delete using (true);
 
-drop policy if exists subtareas_select_all on subtareas;
-drop policy if exists subtareas_insert_all on subtareas;
-drop policy if exists subtareas_update_all on subtareas;
-drop policy if exists subtareas_delete_all on subtareas;
-create policy subtareas_select_all on subtareas for select using (true);
-create policy subtareas_insert_all on subtareas for insert with check (true);
-create policy subtareas_update_all on subtareas for update using (true);
-create policy subtareas_delete_all on subtareas for delete using (true);
+  -- subtareas
+  drop policy if exists subtareas_select_all on subtareas;
+  drop policy if exists subtareas_insert_all on subtareas;
+  drop policy if exists subtareas_update_all on subtareas;
+  drop policy if exists subtareas_delete_all on subtareas;
+  create policy subtareas_select_all on subtareas for select using (true);
+  create policy subtareas_insert_all on subtareas for insert with check (true);
+  create policy subtareas_update_all on subtareas for update using (true);
+  create policy subtareas_delete_all on subtareas for delete using (true);
 
-drop policy if exists burndown_real_select_all on burndown_real;
-drop policy if exists burndown_real_insert_all on burndown_real;
-drop policy if exists burndown_real_update_all on burndown_real;
-drop policy if exists burndown_real_delete_all on burndown_real;
-create policy burndown_real_select_all on burndown_real for select using (true);
-create policy burndown_real_insert_all on burndown_real for insert with check (true);
-create policy burndown_real_update_all on burndown_real for update using (true);
-create policy burndown_real_delete_all on burndown_real for delete using (true);
+  -- burndown_real
+  drop policy if exists burndown_real_select_all on burndown_real;
+  drop policy if exists burndown_real_insert_all on burndown_real;
+  drop policy if exists burndown_real_update_all on burndown_real;
+  drop policy if exists burndown_real_delete_all on burndown_real;
+  create policy burndown_real_select_all on burndown_real for select using (true);
+  create policy burndown_real_insert_all on burndown_real for insert with check (true);
+  create policy burndown_real_update_all on burndown_real for update using (true);
+  create policy burndown_real_delete_all on burndown_real for delete using (true);
 
-drop policy if exists festivos_mx_select_all on festivos_mx;
-drop policy if exists festivos_mx_insert_all on festivos_mx;
-drop policy if exists festivos_mx_update_all on festivos_mx;
-drop policy if exists festivos_mx_delete_all on festivos_mx;
-create policy festivos_mx_select_all on festivos_mx for select using (true);
-create policy festivos_mx_insert_all on festivos_mx for insert with check (true);
-create policy festivos_mx_update_all on festivos_mx for update using (true);
-create policy festivos_mx_delete_all on festivos_mx for delete using (true);
+  -- festivos_mx
+  drop policy if exists festivos_mx_select_all on festivos_mx;
+  drop policy if exists festivos_mx_insert_all on festivos_mx;
+  drop policy if exists festivos_mx_update_all on festivos_mx;
+  drop policy if exists festivos_mx_delete_all on festivos_mx;
+  create policy festivos_mx_select_all on festivos_mx for select using (true);
+  create policy festivos_mx_insert_all on festivos_mx for insert with check (true);
+  create policy festivos_mx_update_all on festivos_mx for update using (true);
+  create policy festivos_mx_delete_all on festivos_mx for delete using (true);
+
+  -- capacidad_persona
+  drop policy if exists capacidad_persona_select_all on capacidad_persona;
+  drop policy if exists capacidad_persona_insert_all on capacidad_persona;
+  drop policy if exists capacidad_persona_update_all on capacidad_persona;
+  drop policy if exists capacidad_persona_delete_all on capacidad_persona;
+  create policy capacidad_persona_select_all on capacidad_persona for select using (true);
+  create policy capacidad_persona_insert_all on capacidad_persona for insert with check (true);
+  create policy capacidad_persona_update_all on capacidad_persona for update using (true);
+  create policy capacidad_persona_delete_all on capacidad_persona for delete using (true);
+end $$;
 
 -- Festivos (ejemplo)
 insert into festivos_mx (fecha, descripcion) values

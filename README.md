@@ -1,19 +1,36 @@
-# GM Sprints – FULL v4 (ES)
+# GM Sprints – FULL v5 (ES)
 
-### Novedades
-- **Real con nulos**: En `burndown_real`, los días futuros quedan con `NULL` para que **no se pinten** en la gráfica. Día 0 = estimado.
-- **Botones en burndown**:
-  - **Recalcular estimado**: refresca la línea Estimada (la vista ya recalcula por total de horas / días hábiles).
-  - **Calcular hoy**: toma **Horas pendientes (KPI)** y las guarda como **Real** en el **día hábil actual**.
-- **Tabla “Hrs Burndown”**: puedes editar `Real`. Si dejas el campo vacío, guarda `NULL` (y la gráfica no lo dibuja).
-- Se mantiene **Avance por persona** debajo del burndown.
+Incluye TODO lo construido hasta ahora + **Avance por proyecto** (vista + UI).
 
-### Pasos
-1) Ejecuta `supabase.sql` (nota: ahora `burndown_real.horas` acepta `NULL`).
-2) En `app.js`, coloca tus credenciales Supabase.
-3) Abrir `index.html` (o GitHub Pages).
+## 1) Instalación
+1. En Supabase, ejecuta `supabase.sql` (estructura completa: tablas, vistas, funciones y RLS de pruebas).
+2. En `app.js`, coloca tus credenciales:
+```js
+const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
+```
+3. Abre `index.html` o súbelo a GitHub Pages.
 
-### Detalles
-- El **Estimado** se calcula con la vista `sprint_burndown_estimado` (total horas / días hábiles), por lo que el botón solo **refresca**.
-- **Calcular hoy** valida que **hoy sea un día hábil** dentro del sprint (sin fines de semana ni festivos).
+## 2) Destacados
+- **Burndown**
+  - Real: día 0 = estimado, días futuros = `NULL` (no se pinta).
+  - Botones: “Recalcular estimado” (refresca vista) y “Calcular hoy” (Real = KPI horas pendientes del día).
+  - Índices únicos `(sprint_id, dia)` y `(sprint_id, fecha)` para upserts seguros.
+- **Dashboard**
+  - KPIs generales.
+  - Gráficas (Chart.js): Estimado vs Real y barras de horas terminadas.
+  - **Avance por persona** (RPC con capacidad 7h/día).
+  - **Avance por proyecto** (vista con totales, terminadas, pendientes y % avance).
+- **Configuración**
+  - Tabla de subtareas con filtros (texto/propietario/estado), switches de Terminado y Ocultar.
+- **Cargas diarias**
+  - Uploader de subtareas e historias con **parser de Zoho** `dd/mm/yyyy ...` (ignora hora).
 
+## 3) Consultas útiles
+- Avance por persona (vista): `select * from avance_por_persona where sprint_id=:p_sprint;`
+- Avance por persona extendido: `select * from avance_por_persona_extendido(:p_sprint);`
+- Avance por proyecto: `select * from avance_por_proyecto where sprint_id=:p_sprint;`
+
+## 4) Notas
+- La tabla `capacidad_persona` es opcional (para personalizar horas/día por propietario).
+- Festivos de MX de ejemplo incluidos.
