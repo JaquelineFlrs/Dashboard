@@ -601,7 +601,7 @@ function Configuracion({sprintId}){
               React.createElement('option',{value:''},'Todos los propietarios'),
               propietarios.map(p=> React.createElement('option',{key:p,value:p},p))
             ),
-            React.createElement('select',{value:estadoSel,onChange=e=>setEstadoSel(e.target.value),className:'px-3 py-1.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent'},
+            React.createElement('select',{value:estadoSel,onChange: e => setEstadoSel(e.target.value),className:'px-3 py-1.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent'},
               React.createElement('option',{value:''},'Todos los estados'),
               React.createElement('option',{value:'pendiente'},'Pendiente'),
               React.createElement('option',{value:'terminado'},'Terminado')
