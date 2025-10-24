@@ -633,7 +633,7 @@ function Configuracion({sprintId}){
                     React.createElement('input',{type:'checkbox',checked:!!r.terminado,onChange:e=>setTerminado(r.id,e.target.checked),className:'h-4 w-4 accent-zinc-900 dark:accent-zinc-100'})
                   ),
                   React.createElement('td',{className:'py-3 pr-0'},
-                    React.createElement('input',{type:'checkbox',checked:!!r.oculto,onChange:e=>setOculto(r.id,e.target.checked),className:'h-4 w-4 accent-zinc-900 dark:accent-zinc-100'})
+                    React.createElement('input',{type:'checkbox',checked:!!r.oculto,onChange=e=>setOculto(r.id,e.target.checked),className:'h-4 w-4 accent-zinc-900 dark:accent-zinc-100'})
                   )
                 )
               )
@@ -851,8 +851,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(
             },
           },
         },
-      },
-    });
+      };
+    };
 
     useChart(canvasRef, configFactory, [labels.join(','), hours.join(',')]);
 
