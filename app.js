@@ -321,8 +321,8 @@ function Dashboard({sprintId}){
         React.createElement(KpiCard,{title:'Horas pendientes', value:kpi? kpi.horas_pendientes:'—', icon:'fa-solid fa-gauge'}),
         React.createElement(KpiCard,{title:'% Avance', value:kpi? `${kpi.porcentaje_avance}%`:'—', icon:'fa-solid fa-chart-line'}),
       ),
-      React.createElement('section',{className:'mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4'},
-        React.createElement('div',{className:'lg:col-span-2 rounded-2xl border p-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'},
+      React.createElement('section',{className:'mt-6 grid grid-cols-1 lg:grid-cols-12 gap-4'},
+        React.createElement('div',{className:'lg:col-span-12 rounded-2xl border p-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'},
           React.createElement('div',{className:'flex items-center justify-between mb-3'},
             React.createElement('h3',{className:'font-semibold'},'Burndown – Estimado vs Real'),
             React.createElement('div',{className:'flex items-center gap-2'},
@@ -349,7 +349,7 @@ function Dashboard({sprintId}){
             React.createElement('canvas',{id:'chart-line',className:'w-full h-full'})
           )
         ),
-        React.createElement('div',{className:'rounded-2xl border p-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'},
+        React.createElement('div',{className:'lg:col-span-12 rounded-2xl border p-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'},
           React.createElement('div',{className:'flex items-center justify-between mb-3'},
             React.createElement('h3',{className:'font-semibold'},'Horas terminadas por día')
           ),
@@ -757,7 +757,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(
             },
             title: {
               display: true,
-              text: 'Burndown — Estimado vs Real',
+              text: 'Burndown ',
               padding: { top: 6, bottom: 12 },
               font: { size: 16, weight: '600' },
             },
