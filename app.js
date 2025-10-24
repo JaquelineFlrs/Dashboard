@@ -1,8 +1,4 @@
-/* GM Sprints – FULL (ES) – React UMD + Tailwind + Supabase + Chart.js + PapaParse
-   - Español completo
-   - RLS abierta para pruebas (ver supabase.sql)
-   - Listo para GitHub Pages
-*/
+/* GM Sprints – FULL v2 (ES) – Fixes solicitados */
 const { useState, useEffect, useMemo } = React;
 const NAV = [
   { key: 'dashboard', icon: 'fa-solid fa-gauge', label: 'Dashboard' },
@@ -12,12 +8,11 @@ const NAV = [
   { key: 'config',    icon: 'fa-solid fa-gear', label: 'Configuración' },
 ];
 
-// ---------- Supabase ----------
-const SUPABASE_URL = "https://xsmtmnypjbrgnuqtnsda.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXRtbnlwamJyZ251cXRuc2RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNzUzNTYsImV4cCI6MjA3Njg1MTM1Nn0.S9lgld-poDLv9QMevxQHXVFAM-QUG4JNOnR6Ao_oUgw";
+const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ---------- Helpers ----------
+// Helpers
 function cls(...xs){return xs.filter(Boolean).join(' ');}
 function useDarkMode(){
   const [isDark,setIsDark]=useState(false);
@@ -27,45 +22,36 @@ function useDarkMode(){
   },[isDark]);
   return { isDark, setIsDark };
 }
-function toast(msg, type='info'){
-  console.log(`[${type}]`, msg);
-  alert(msg);
-}
+function toast(msg){ alert(msg); }
 function parseIntHours(hhmm){
-  // '02:00' -> 2; '10:15' -> 10 (redondeo hacia abajo a horas enteras)
   if(!hhmm) return 0;
-  const [hh] = String(hhmm).split(':');
+  const [hh] = String(hhmm).trim().split(':');
   const v = parseInt(hh,10);
   return Number.isFinite(v) ? Math.max(0,v) : 0;
 }
-function toISO(d){ return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
 function fmtDMY(iso){ const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
-function isWeekend(date){ const w=date.getDay(); return w===0 || w===6; }
-function addDays(date, n){ const x=new Date(date); x.setDate(x.getDate()+n); return x; }
-function rangeBizDays(startISO, endISO, festivosSet){
-  const out=[]; let cur=new Date(startISO+'T00:00:00'); const end=new Date(endISO+'T00:00:00');
-  while(cur<=end){
-    const iso=toISO(cur);
-    if(!isWeekend(cur) && !festivosSet.has(iso)) out.push(iso);
-    cur=addDays(cur,1);
-  }
-  return out;
+// "22/10/2025  04:04:00 p. m." -> "2025-10-22"
+function parseZohoDateToISO(dateStr){
+  if(!dateStr) return null;
+  const s = String(dateStr).trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  const dd = m[1].padStart(2,'0');
+  const mm = m[2].padStart(2,'0');
+  const yyyy = m[3];
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-// ---------- App ----------
 function App(){
   const { isDark, setIsDark } = useDarkMode();
   const [tab, setTab] = useState('sprint');
   const [sprintId, setSprintId] = useState(localStorage.getItem('sprint_id') || '');
   const [sprintNombre, setSprintNombre] = useState(localStorage.getItem('sprint_nombre') || '');
-
-  // Mostrar sprint activo en topbar
   const sprintActivo = sprintNombre ? `${sprintNombre}` : '—';
 
   return (
     React.createElement('div', {className:'min-h-screen'},
       React.createElement('div', {className:'flex'},
-        // Sidebar
         React.createElement('aside', {className:'hidden md:flex w-64 min-h-screen flex-col gap-2 border-r border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 backdrop-blur'},
           React.createElement('div', {className:'px-5 py-4 text-lg font-semibold tracking-tight'}, 'GM Sprints'),
           React.createElement('nav', {className:'flex-1 px-3'},
@@ -84,9 +70,7 @@ function App(){
             )
           )
         ),
-        // Main
         React.createElement('main',{className:'flex-1'},
-          // Topbar
           React.createElement('header',{className:'sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 backdrop-blur'},
             React.createElement('div',{className:'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between'},
               React.createElement('div',{className:'flex items-center gap-3'},
@@ -96,16 +80,13 @@ function App(){
               ),
               React.createElement('div',{className:'flex items-center gap-3 text-sm'},
                 React.createElement('span',{className:'text-zinc-500'}, 'Sprint activo:'),
-                React.createElement('span',{className:'font-medium'}, sprintActivo),
-                React.createElement('div',{className:'h-6 w-px bg-zinc-200 dark:bg-zinc-800'}),
-                React.createElement('span',{className:'text-zinc-500'}, 'ID:'),
-                React.createElement('span',{className:'font-semibold'}, sprintId || '—')
+                React.createElement('span',{className:'font-medium'}, sprintActivo)
               )
             )
           ),
           React.createElement('div',{className:'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6'},
-            tab==='dashboard' && React.createElement(Dashboard,{sprintId,setTab}),
-            tab==='sprint' && React.createElement(SprintAdmin,{sprintId,setSprintId,setSprintNombre,setTab}),
+            tab==='dashboard' && React.createElement(Dashboard,{sprintId}),
+            tab==='sprint' && React.createElement(SprintAdmin,{sprintId,setSprintId,setSprintNombre}),
             tab==='cargas' && React.createElement(CargasDiarias,{sprintId}),
             tab==='hrs' && React.createElement(HrsBurndown,{sprintId}),
             tab==='config' && React.createElement(Configuracion,{sprintId})
@@ -116,21 +97,21 @@ function App(){
   );
 }
 
-// ---------- Sprint (crear/seleccionar) ----------
-function SprintAdmin({sprintId,setSprintId,setSprintNombre,setTab}){
+// Sprint
+function SprintAdmin({sprintId,setSprintId,setSprintNombre}){
   const [nombre,setNombre]=useState('');
   const [fi,setFi]=useState('');
   const [ff,setFf]=useState('');
   const [sprints,setSprints]=useState([]);
 
   async function crearSprint(){
-    if(!nombre || !fi || !ff){ toast('Completa nombre, inicio y fin','warn'); return; }
+    if(!nombre || !fi || !ff){ toast('Completa nombre, inicio y fin'); return; }
     const { data, error } = await supabase.from('sprints').insert({nombre,fecha_inicio:fi,fecha_fin:ff}).select('*').single();
-    if(error){ toast('Error creando sprint: '+error.message,'error'); return; }
-    toast('Sprint creado ✅');
+    if(error){ toast('Error creando sprint: '+error.message); return; }
     setSprintId(data.id); setSprintNombre(data.nombre);
     localStorage.setItem('sprint_id', data.id);
     localStorage.setItem('sprint_nombre', data.nombre);
+    toast('Sprint creado ✅');
     cargarSprints();
   }
   async function cargarSprints(){
@@ -158,8 +139,7 @@ function SprintAdmin({sprintId,setSprintId,setSprintNombre,setTab}){
           )
         ),
         React.createElement('div',{className:'mt-4 flex items-center gap-2'},
-          React.createElement('button',{onClick:crearSprint,className:'px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800'},'Crear sprint'),
-          React.createElement('button',{onClick:()=>setTab('cargas'),className:'px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800'},'Ir a cargas iniciales')
+          React.createElement('button',{onClick:crearSprint,className:'px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800'},'Crear sprint')
         )
       ),
       React.createElement('section',{className:'mt-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6'},
@@ -168,8 +148,7 @@ function SprintAdmin({sprintId,setSprintId,setSprintNombre,setTab}){
           sprints.map(sp =>
             React.createElement('button',{key:sp.id,onClick:()=>{setSprintId(sp.id); setSprintNombre(sp.nombre); localStorage.setItem('sprint_id',sp.id); localStorage.setItem('sprint_nombre',sp.nombre); toast('Sprint activo cambiado');}, className: 'text-left p-3 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'},
               React.createElement('div',{className:'font-medium'}, sp.nombre),
-              React.createElement('div',{className:'text-xs text-zinc-500'}, `${sp.fecha_inicio} → ${sp.fecha_fin}`),
-              React.createElement('div',{className:'text-xs text-zinc-400 mt-1'}, sp.id)
+              React.createElement('div',{className:'text-xs text-zinc-500'}, `${sp.fecha_inicio} → ${sp.fecha_fin}`)
             )
           )
         )
@@ -178,15 +157,17 @@ function SprintAdmin({sprintId,setSprintId,setSprintNombre,setTab}){
   );
 }
 
-// ---------- Cargas Diarias (CSV) ----------
+// Cargas Diarias
 function CargasDiarias({sprintId}){
   const [subtareasRows,setSubtareasRows]=useState([]);
   const [historiasRows,setHistoriasRows]=useState([]);
+
   function papaParse(file, onDone){
     Papa.parse(file,{ header:true, skipEmptyLines:true, complete: (res)=> onDone(res.data) });
   }
+
   async function subirHistorias(){
-    if(!sprintId){ toast('Primero selecciona/crea un sprint','warn'); return; }
+    if(!sprintId){ toast('Selecciona/crea un sprint'); return; }
     for(const row of historiasRows){
       try{
         const tarea_id = row['ID de Tarea'] || row['Id de Tarea'] || row['ID_TAREA'];
@@ -199,33 +180,37 @@ function CargasDiarias({sprintId}){
     }
     toast('Historias cargadas ✅');
   }
+
   async function subirSubtareas(){
-    if(!sprintId){ toast('Primero selecciona/crea un sprint','warn'); return; }
+    if(!sprintId){ toast('Selecciona/crea un sprint'); return; }
     for(const row of subtareasRows){
       try{
         const historia_id = row['ID de Tarea principal'] || row['ID tarea principal'] || row['ID_TAREA_PRINCIPAL'];
         const nombre      = row['Nombre de Tarea'] || row['Subtarea'] || row['Nombre'];
-        const propietario = row['Propietario'] || row['Owner'];
+        const propietario = row['Propietario'] || row['Owner'] || '—';
         const duracion_h  = parseIntHours(row['Duración'] || row['Duracion'] || row['DURACION']);
         const estado      = row['Estado personalizado'] || row['Estado'] || '';
-        const fc          = row['Hora de creación'] ? new Date(row['Hora de creación']).toISOString() : null;
-        const ft          = row['Fecha de terminación'] ? new Date(row['Fecha de terminación']).toISOString() : null;
+        const fcISO       = parseZohoDateToISO(row['Hora de creación']);
+        const ftISO       = parseZohoDateToISO(row['Fecha de terminación']);
         if(!historia_id || !nombre) continue;
         const { error } = await supabase.rpc('upsert_subtarea', {
           p_sprint: sprintId, p_historia_tarea_id: historia_id, p_nombre: nombre,
-          p_propietario: propietario||'—', p_duracion_h: duracion_h, p_estado: estado, p_creacion: fc, p_terminacion: ft
+          p_propietario: propietario, p_duracion_h: duracion_h, p_estado: estado,
+          p_creacion: fcISO ? (fcISO+'T00:00:00Z') : null,
+          p_terminacion: ftISO ? (ftISO+'T00:00:00Z') : null
         });
         if(error) console.warn('upsert_subtarea err', error);
-      }catch(e){ console.warn('row subtarea err',e); }
+      }catch(e){ console.warn('w subtarea err', e); }
     }
     toast('Subtareas cargadas ✅');
   }
+
   return (
     React.createElement(React.Fragment,null,
       React.createElement('section',{className:'rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6'},
         React.createElement('h3',{className:'font-semibold mb-3'},'Cargas diarias – Subtareas'),
         React.createElement('input',{type:'file', accept:'.csv,.txt', onChange:e=> papaParse(e.target.files[0], setSubtareasRows)}),
-        React.createElement('div',{className:'mt-2 text-xs text-zinc-500'},'Estructura Zoho original (primera fila = encabezados).'),
+        React.createElement('div',{className:'mt-2 text-xs text-zinc-500'},'Formato Zoho. La primera fila debe ser encabezados.'),
         React.createElement('div',{className:'mt-3'},
           React.createElement('button',{onClick: subirSubtareas, className:'px-3 py-1.5 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'},'Subir subtareas')
         )
@@ -242,45 +227,40 @@ function CargasDiarias({sprintId}){
   );
 }
 
-// ---------- Dashboard (KPI + charts) ----------
-function Dashboard({sprintId,setTab}){
+// Dashboard
+function Dashboard({sprintId}){
   const [kpi,setKpi]=useState(null);
   const [estimado,setEstimado]=useState([]);
   const [real,setReal]=useState([]);
   const [terminadasByDia,setTerminadasByDia]=useState([]);
 
   async function cargarTodo(){
-    if(!sprintId){ toast('Selecciona un sprint primero','warn'); return; }
-    // KPIs
+    if(!sprintId){ return; }
     let { data:kpis } = await supabase.from('sprint_kpis').select('*').eq('sprint_id', sprintId).maybeSingle();
     setKpi(kpis||{total_horas:0,horas_terminadas:0,horas_pendientes:0,porcentaje_avance:0});
 
-    // Estimado
     let { data:est } = await supabase.from('sprint_burndown_estimado').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true});
     setEstimado(est||[]);
 
-    // Real
-    let { data:reales } = await supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('fecha',{ascending:true});
+    let { data:reales } = await supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true});
     setReal(reales||[]);
 
-    // Horas terminadas por día (vista auxiliar)
     let { data:bars } = await supabase.from('horas_terminadas_por_dia').select('*').eq('sprint_id',sprintId).order('fecha',{ascending:true});
     setTerminadasByDia(bars||[]);
   }
   useEffect(()=>{ cargarTodo(); },[sprintId]);
 
   useEffect(()=>{
-    // Gráfica línea (Estimado vs Real)
     const ctxL = document.getElementById('chart-line');
     const ctxB = document.getElementById('chart-bars');
     if(!ctxL || !ctxB) return;
     const labels = (estimado||[]).map(x=>`Día ${x.dia}`);
     const dataEst = (estimado||[]).map(x=>x.horas_estimadas);
-    const mapReal = new Map((real||[]).map(r=>[r.fecha, r.horas]));
-    const dataReal = (estimado||[]).map(x=> mapReal.get(x.fecha) ?? null);
+    const mapRealByDia = new Map((real||[]).map(r=>[r.dia, r.horas]));
+    const dataReal = (estimado||[]).map(x=> mapRealByDia.get(x.dia) ?? null);
     const line = new Chart(ctxL,{type:'line',data:{labels,datasets:[
-      {label:'Estimado', data:dataEst, borderColor:'#16a34a', tension:0.2},
-      {label:'Real', data:dataReal, borderColor:'#2563eb', tension:0.2}
+      {label:'Estimado', data:dataEst, borderColor:'#16a34a', tension:0},
+      {label:'Real', data:dataReal, borderColor:'#2563eb', tension:0}
     ]}, options:{responsive:true}});
     const bar = new Chart(ctxB,{type:'bar',data:{
       labels:(terminadasByDia||[]).map(x=>x.fecha),
@@ -300,10 +280,7 @@ function Dashboard({sprintId,setTab}){
       React.createElement('section',{className:'mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4'},
         React.createElement('div',{className:'lg:col-span-2 rounded-2xl border p-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'},
           React.createElement('div',{className:'flex items-center justify-between mb-3'},
-            React.createElement('h3',{className:'font-semibold'},'Burndown – Estimado vs Real'),
-            React.createElement('div',null,
-              React.createElement('button',{onClick:()=>setTab('hrs'), className:'px-3 py-1.5 text-sm rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'},'Abrir tabla Hrs Burndown')
-            )
+            React.createElement('h3',{className:'font-semibold'},'Burndown – Estimado vs Real')
           ),
           React.createElement('div',{className:'h-64 w-full rounded-xl border border-dashed flex items-center justify-center text-zinc-400 dark:border-zinc-700'},
             React.createElement('canvas',{id:'chart-line',className:'w-full h-full'})
@@ -334,39 +311,26 @@ function KpiCard({title,value,icon}){
   );
 }
 
-// ---------- Hrs Burndown (tabla editable + guardar en Supabase) ----------
+// Hrs Burndown
 function HrsBurndown({sprintId}){
   const [rows,setRows]=useState([]);
   const [totalHoras,setTotalHoras]=useState(0);
   const [fi,setFi]=useState(''); const [ff,setFf]=useState('');
-  const [festivos,setFestivos]=useState([]);
 
   async function cargarBase(){
-    if(!sprintId){ toast('Selecciona un sprint primero','warn'); return; }
-    const [{data:sp},{data:fest}] = await Promise.all([
+    if(!sprintId){ return; }
+    const [{data:sp},{data:est},{data:reales},{data:kpis}] = await Promise.all([
       supabase.from('sprints').select('fecha_inicio,fecha_fin').eq('id',sprintId).single(),
-      supabase.from('festivos_mx').select('fecha')
-    ]);
-    setFi(sp?.fecha_inicio||''); setFf(sp?.fecha_fin||'');
-    setFestivos((fest||[]).map(f=>f.fecha));
-    await reconstruir(false);
-  }
-
-  async function reconstruir(sobrescribirReal=false){
-    if(!sprintId || !fi || !ff) return;
-    const festivosSet = new Set(festivos);
-    // Leer estimado (desde vista) y real (burndown_real)
-    const [{data:est},{data:reales},{data:kpis}] = await Promise.all([
       supabase.from('sprint_burndown_estimado').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true}),
-      supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('fecha',{ascending:true}),
-      supabase.from('sprint_kpis').select('*').eq('sprint_id',sprintId).maybeSingle(),
+      supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true}),
+      supabase.from('sprint_kpis').select('*').eq('sprint_id',sprintId).maybeSingle()
     ]);
-    setTotalHoras(kpis?.total_horas||0);
-    const realByDate = new Map((reales||[]).map(r=>[r.fecha,r.horas]));
-    const tabla = (est||[]).map(e=>{
-      const real = (sobrescribirReal? e.horas_estimadas : (realByDate.get(e.fecha) ?? e.horas_estimadas));
-      return { dia:e.dia, fecha:e.fecha, fecha_dmy: fmtDMY(e.fecha), estimado:e.horas_estimadas, real };
-    });
+    setFi(sp?.fecha_inicio||''); setFf(sp?.fecha_fin||''); setTotalHoras(kpis?.total_horas||0);
+    const realByDia = new Map((reales||[]).map(r=>[r.dia, r.horas]));
+    const tabla = (est||[]).map(e=> ({
+      dia: e.dia, fecha: e.fecha, fecha_dmy: fmtDMY(e.fecha),
+      estimado: e.horas_estimadas, real: (realByDia.get(e.dia) ?? e.horas_estimadas)
+    }));
     setRows(tabla);
   }
 
@@ -374,11 +338,10 @@ function HrsBurndown({sprintId}){
     const n = Number(val); if(Number.isNaN(n) || n<0) return;
     const row = rows[i]; if(!row) return;
     setRows(prev=>{ const c=[...prev]; c[i]={...row, real:n}; return c; });
-    // Persistir
     const { error } = await supabase.rpc('set_burndown_real', {
       p_sprint: sprintId, p_fecha: row.fecha, p_dia: row.dia, p_horas: n
     });
-    if(error) toast('Error guardando Real: '+error.message,'error');
+    if(error) toast('Error guardando Real: '+error.message);
   }
 
   useEffect(()=>{ cargarBase(); },[sprintId]);
@@ -387,24 +350,20 @@ function HrsBurndown({sprintId}){
     React.createElement('section',{className:'rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6'},
       React.createElement('div',{className:'flex items-center justify-between mb-3'},
         React.createElement('h3',{className:'font-semibold'},'Hrs Burndown'),
-        React.createElement('div',{className:'text-xs text-zinc-500'},'Edita la columna Real o usa Recalcular para rearmar la tabla.')
+        React.createElement('div',{className:'text-xs text-zinc-500'},'Edita la columna Real; se guarda automáticamente.')
       ),
-      React.createElement('div',{className:'grid grid-cols-1 md:grid-cols-4 gap-3 mb-4'},
+      React.createElement('div',{className:'grid grid-cols-1 md:grid-cols-3 gap-3 mb-4'},
         React.createElement('div',null,
           React.createElement('label',{className:'text-xs text-zinc-500'},'Fecha inicio'),
-          React.createElement('input',{type:'date',value:fi,onChange:e=>setFi(e.target.value),className:'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent'})
+          React.createElement('input',{type:'date',value:fi,readOnly:true,className:'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/60 dark:bg-zinc-800/40'})
         ),
         React.createElement('div',null,
           React.createElement('label',{className:'text-xs text-zinc-500'},'Fecha fin'),
-          React.createElement('input',{type:'date',value:ff,onChange:e=>setFf(e.target.value),className:'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent'})
+          React.createElement('input',{type:'date',value:ff,readOnly:true,className:'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/60 dark:bg-zinc-800/40'})
         ),
         React.createElement('div',null,
           React.createElement('label',{className:'text-xs text-zinc-500'},'Total de horas (solo lectura)'),
-          React.createElement('input',{value:totalHoras, readOnly:true, className:'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/60 dark:bg-zinc-800/40'})
-        ),
-        React.createElement('div',{className:'flex items-end gap-2'},
-          React.createElement('button',{onClick:()=>reconstruir(false),className:'w-full px-4 py-2 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'},'Recalcular (conservar Real)'),
-          React.createElement('button',{onClick:()=>reconstruir(true),className:'w-full px-4 py-2 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'},'Recalcular (sobrescribir Real)')
+          React.createElement('input',{value:totalHoras,readOnly:true,className:'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/60 dark:bg-zinc-800/40'})
         )
       ),
       React.createElement('div',{className:'overflow-x-auto'},
@@ -435,29 +394,67 @@ function HrsBurndown({sprintId}){
   );
 }
 
-// ---------- Configuración (switches) ----------
+// Configuración con filtros
 function Configuracion({sprintId}){
   const [rows,setRows]=useState([]);
+  const [q,setQ]=useState('');
+  const [propSel,setPropSel]=useState('');
+  const [estadoSel,setEstadoSel]=useState('');
+
   async function cargar(){
     if(!sprintId){ setRows([]); return; }
-    const { data } = await supabase.from('subtareas_v').select('*').eq('sprint_id',sprintId).limit(2000);
+    const { data } = await supabase.from('subtareas_v2').select('*').eq('sprint_id',sprintId).limit(5000);
     setRows(data||[]);
   }
+  useEffect(()=>{ cargar(); },[sprintId]);
+
+  const propietarios = useMemo(()=> Array.from(new Set(rows.map(r=>r.propietario).filter(Boolean))).sort(), [rows]);
+
+  const filtradas = useMemo(()=>{
+    const t = (q||'').toLowerCase().trim();
+    return rows.filter(r => {
+      const okQ = !t || (
+        (r.nombre||'').toLowerCase().includes(t) ||
+        (r.proyecto||'').toLowerCase().includes(t) ||
+        (r.nombre_historia||'').toLowerCase().includes(t) ||
+        (r.propietario||'').toLowerCase().includes(t)
+      );
+      const okProp = !propSel || r.propietario===propSel;
+      const term = (r.terminado===true);
+      const okEstado = !estadoSel || (estadoSel==='terminado' ? term : !term);
+      return okQ && okProp && okEstado;
+    });
+  },[rows,q,propSel,estadoSel]);
+
   async function setTerminado(id, val){
     const { error } = await supabase.rpc('set_subtarea_terminada',{p_id:id,p_val:val});
-    if(error) toast('Error al marcar terminado','error'); else cargar();
+    if(!error) cargar();
   }
   async function setOculto(id, val){
     const { error } = await supabase.rpc('set_subtarea_oculta',{p_id:id,p_val:val});
-    if(error) toast('Error al cambiar oculto','error'); else cargar();
+    if(!error) cargar();
   }
-  useEffect(()=>{ cargar(); },[sprintId]);
 
   return (
     React.createElement(React.Fragment,null,
       React.createElement('section',{className:'rounded-2xl border p-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'},
-        React.createElement('div',{className:'flex items-center justify-between'},
-          React.createElement('h3',{className:'font-semibold'},'Subtareas')
+        React.createElement('div',{className:'flex flex-col md:flex-row md:items-center md:justify-between gap-3'},
+          React.createElement('h3',{className:'font-semibold'},'Subtareas'),
+          React.createElement('div',{className:'flex flex-col md:flex-row gap-2 items-stretch'},
+            React.createElement('div',{className:'relative'},
+              React.createElement('i',{className:'fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400'}),
+              React.createElement('input',{value:q,onChange:e=>setQ(e.target.value),className:'pl-9 pr-3 py-1.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:focus:ring-zinc-700', placeholder:'Buscar historia, subtarea, proyecto o propietario'})
+            ),
+            React.createElement('select',{value:propSel,onChange:e=>setPropSel(e.target.value),className:'px-3 py-1.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent'},
+              React.createElement('option',{value:''},'Todos los propietarios'),
+              propietarios.map(p=> React.createElement('option',{key:p,value:p},p))
+            ),
+            React.createElement('select',{value:estadoSel,onChange:e=>setEstadoSel(e.target.value),className:'px-3 py-1.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent'},
+              React.createElement('option',{value:''},'Todos los estados'),
+              React.createElement('option',{value:'pendiente'},'Pendiente'),
+              React.createElement('option',{value:'terminado'},'Terminado')
+            )
+          )
         )
       ),
       React.createElement('section',{className:'mt-4 rounded-2xl border p-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'},
@@ -465,7 +462,7 @@ function Configuracion({sprintId}){
           React.createElement('table',{className:'w-full text-sm'},
             React.createElement('thead',null,
               React.createElement('tr',{className:'text-left text-zinc-500'},
-                React.createElement('th',{className:'py-2 pr-4'},'Historia (ID)'),
+                React.createElement('th',{className:'py-2 pr-4'},'Historia (Proyecto)'),
                 React.createElement('th',{className:'py-2 pr-4'},'Subtarea'),
                 React.createElement('th',{className:'py-2 pr-4'},'Propietario'),
                 React.createElement('th',{className:'py-2 pr-4'},'Duración'),
@@ -474,9 +471,9 @@ function Configuracion({sprintId}){
               )
             ),
             React.createElement('tbody',null,
-              rows.map(r=>
+              filtradas.map(r=>
                 React.createElement('tr',{key:r.id,className:'border-t border-zinc-100 dark:border-zinc-800'},
-                  React.createElement('td',{className:'py-3 pr-4'}, `${r.historia_tarea_id}`),
+                  React.createElement('td',{className:'py-3 pr-4'}, `${r.nombre_historia||'—'} (${r.proyecto||'—'})`),
                   React.createElement('td',{className:'py-3 pr-4'}, r.nombre),
                   React.createElement('td',{className:'py-3 pr-4'}, r.propietario),
                   React.createElement('td',{className:'py-3 pr-4'}, `${r.duracion_h} h`),

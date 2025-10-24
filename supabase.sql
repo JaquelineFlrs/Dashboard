@@ -1,7 +1,6 @@
--- SUPABASE – FULL (ES) – Tablas, Vistas, Funciones, RLS abierta
+-- SUPABASE – FULL v2 (ES) – Ajustes
 create extension if not exists pgcrypto;
 
--- Tablas
 create table if not exists sprints (
   id            uuid primary key default gen_random_uuid(),
   nombre        text not null,
@@ -46,15 +45,23 @@ create table if not exists burndown_real (
   dia       int  not null,
   fecha     date not null,
   horas     int  not null check (horas >= 0),
-  unique (sprint_id, fecha)
+  unique (sprint_id, fecha),
+  unique (sprint_id, dia)
 );
 
--- Vista de subtareas visibles + columna terminado unificada
-create or replace view subtareas_v as
+-- Vista subtareas_v2 con nombre de historia y proyecto
+create or replace view subtareas_v2 as
 select
   s.*,
-  (s.terminado_manual or (s.estado_personalizado ilike '%completado%') or (s.fecha_terminacion is not null)) as terminado
+  h.nombre   as nombre_historia,
+  h.proyecto as proyecto,
+  (s.terminado_manual
+    or (s.estado_personalizado ilike '%completado%')
+    or (s.fecha_terminacion is not null)
+  ) as terminado
 from subtareas s
+left join historias h
+  on h.tarea_id = s.historia_tarea_id
 where s.oculto = false;
 
 -- KPI por sprint
@@ -62,16 +69,16 @@ create or replace view sprint_kpis as
 select
   sp.id as sprint_id,
   coalesce(sum(st.duracion_h),0) as total_horas,
-  coalesce(sum(case when st.terminado then st.duracion_h else 0 end),0) as horas_terminadas,
-  coalesce(sum(st.duracion_h),0) - coalesce(sum(case when st.terminado then st.duracion_h else 0 end),0) as horas_pendientes,
+  coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%') or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0) as horas_terminadas,
+  coalesce(sum(st.duracion_h),0) - coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%') or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0) as horas_pendientes,
   case when coalesce(sum(st.duracion_h),0)=0 then 0
-       else round((coalesce(sum(case when st.terminado then st.duracion_h else 0 end),0)::numeric * 100)
+       else round((coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%') or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0)::numeric * 100)
            / nullif(coalesce(sum(st.duracion_h),0),0), 2) end as porcentaje_avance
 from sprints sp
-left join subtareas_v st on st.sprint_id = sp.id
+left join subtareas st on st.sprint_id = sp.id and st.oculto = false
 group by sp.id;
 
--- Días hábiles (excluye fines + festivos)
+-- Días hábiles
 create or replace view sprint_dias_habiles as
 select sp.id as sprint_id,
        d::date as fecha,
@@ -84,7 +91,7 @@ join lateral (
     and gs::date not in (select fecha from festivos_mx)
 ) dd on true;
 
--- Burndown estimado
+-- Burndown estimado (por dia)
 create or replace view sprint_burndown_estimado as
 with base as (
   select k.sprint_id, k.total_horas, count(*) as dias
@@ -98,7 +105,7 @@ from sprint_dias_habiles dh
 join base b on b.sprint_id = dh.sprint_id
 order by dh.sprint_id, dh.dia;
 
--- Horas terminadas por día (para barras del dashboard)
+-- Horas terminadas por día
 create or replace view horas_terminadas_por_dia as
 select
   sp.id as sprint_id,
@@ -156,39 +163,62 @@ create or replace function set_burndown_real(p_sprint uuid, p_fecha date, p_dia 
 begin
   insert into burndown_real (sprint_id, fecha, dia, horas)
   values (p_sprint, p_fecha, p_dia, p_horas)
-  on conflict (sprint_id, fecha) do update set dia = excluded.dia, horas = excluded.horas;
+  on conflict (sprint_id, dia) do update set fecha = excluded.fecha, horas = excluded.horas;
 end; $$ language plpgsql;
 
--- RLS (abierta para pruebas en GitHub Pages)
+-- RLS abierta para pruebas
 alter table sprints enable row level security;
 alter table historias enable row level security;
 alter table subtareas enable row level security;
 alter table festivos_mx enable row level security;
 alter table burndown_real enable row level security;
 
-do $$ begin
-  if not exists (select 1 from pg_policies where tablename='sprints' and policyname='sprints_select_all') then
-    create policy sprints_select_all on sprints for select using (true);
-  end if;
-  if not exists (select 1 from pg_policies where tablename='historias' and policyname='historias_select_all') then
-    create policy historias_select_all on historias for select using (true);
-  end if;
-  if not exists (select 1 from pg_policies where tablename='subtareas' and policyname='subtareas_select_all') then
-    create policy subtareas_select_all on subtareas for select using (true);
-  end if;
-  if not exists (select 1 from pg_policies where tablename='festivos_mx' and policyname='festivos_select_all') then
-    create policy festivos_select_all on festivos_mx for select using (true);
-  end if;
-  if not exists (select 1 from pg_policies where tablename='burndown_real' and policyname='burndown_real_select_all') then
-    create policy burndown_real_select_all on burndown_real for select using (true);
-  end if;
-  if not exists (select 1 from pg_policies where tablename='burndown_real' and policyname='burndown_real_write') then
-    create policy burndown_real_write on burndown_real for insert with check (true);
-    create policy burndown_real_update on burndown_real for update using (true);
-  end if;
-end $$;
+drop policy if exists sprints_select_all on sprints;
+drop policy if exists sprints_insert_all on sprints;
+drop policy if exists sprints_update_all on sprints;
+drop policy if exists sprints_delete_all on sprints;
+create policy sprints_select_all on sprints for select using (true);
+create policy sprints_insert_all on sprints for insert with check (true);
+create policy sprints_update_all on sprints for update using (true);
+create policy sprints_delete_all on sprints for delete using (true);
 
--- Festivos MX (ejemplo)
+drop policy if exists historias_select_all on historias;
+drop policy if exists historias_insert_all on historias;
+drop policy if exists historias_update_all on historias;
+drop policy if exists historias_delete_all on historias;
+create policy historias_select_all on historias for select using (true);
+create policy historias_insert_all on historias for insert with check (true);
+create policy historias_update_all on historias for update using (true);
+create policy historias_delete_all on historias for delete using (true);
+
+drop policy if exists subtareas_select_all on subtareas;
+drop policy if exists subtareas_insert_all on subtareas;
+drop policy if exists subtareas_update_all on subtareas;
+drop policy if exists subtareas_delete_all on subtareas;
+create policy subtareas_select_all on subtareas for select using (true);
+create policy subtareas_insert_all on subtareas for insert with check (true);
+create policy subtareas_update_all on subtareas for update using (true);
+create policy subtareas_delete_all on subtareas for delete using (true);
+
+drop policy if exists burndown_real_select_all on burndown_real;
+drop policy if exists burndown_real_insert_all on burndown_real;
+drop policy if exists burndown_real_update_all on burndown_real;
+drop policy if exists burndown_real_delete_all on burndown_real;
+create policy burndown_real_select_all on burndown_real for select using (true);
+create policy burndown_real_insert_all on burndown_real for insert with check (true);
+create policy burndown_real_update_all on burndown_real for update using (true);
+create policy burndown_real_delete_all on burndown_real for delete using (true);
+
+drop policy if exists festivos_mx_select_all on festivos_mx;
+drop policy if exists festivos_mx_insert_all on festivos_mx;
+drop policy if exists festivos_mx_update_all on festivos_mx;
+drop policy if exists festivos_mx_delete_all on festivos_mx;
+create policy festivos_mx_select_all on festivos_mx for select using (true);
+create policy festivos_mx_insert_all on festivos_mx for insert with check (true);
+create policy festivos_mx_update_all on festivos_mx for update using (true);
+create policy festivos_mx_delete_all on festivos_mx for delete using (true);
+
+-- Festivos ejemplo
 insert into festivos_mx (fecha, descripcion) values
   ('2025-01-01','Año Nuevo'),
   ('2025-02-03','Constitución (trasladado)'),
