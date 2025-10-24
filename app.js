@@ -10,7 +10,7 @@ const NAV = [
 
 const SUPABASE_URL = "https://xsmtmnypjbrgnuqtnsda.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXRtbnlwamJyZ251cXRuc2RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNzUzNTYsImV4cCI6MjA3Njg1MTM1Nn0.S9lgld-poDLv9QMevxQHXVFAM-QUG4JNOnR6Ao_oUgw";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Helpers
 function cls(...xs){return xs.filter(Boolean).join(' ');}
