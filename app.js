@@ -601,7 +601,7 @@ function Configuracion({sprintId}){
               React.createElement('option',{value:''},'Todos los propietarios'),
               propietarios.map(p=> React.createElement('option',{key:p,value:p},p))
             ),
-            React.createElement('select',{value:estadoSel,onChange:e=>setEstadoSel(e.target.value),className:'px-3 py-1.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent'},
+            React.createElement('select',{value:estadoSel,onChange=e=>setEstadoSel(e.target.value),className:'px-3 py-1.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-transparent'},
               React.createElement('option',{value:''},'Todos los estados'),
               React.createElement('option',{value:'pendiente'},'Pendiente'),
               React.createElement('option',{value:'terminado'},'Terminado')
@@ -633,7 +633,7 @@ function Configuracion({sprintId}){
                     React.createElement('input',{type:'checkbox',checked:!!r.terminado,onChange:e=>setTerminado(r.id,e.target.checked),className:'h-4 w-4 accent-zinc-900 dark:accent-zinc-100'})
                   ),
                   React.createElement('td',{className:'py-3 pr-0'},
-                    React.createElement('input',{type:'checkbox',checked:!!r.oculto,onChange:e=>setOculto(r.id,e.target.checked),className:'h-4 w-4 accent-zinc-900 dark:accent-zinc-100'})
+                    React.createElement('input',{type:'checkbox',checked:!!r.oculto,onChange=e=>setOculto(r.id,e.target.checked),className:'h-4 w-4 accent-zinc-900 dark:accent-zinc-100'})
                   )
                 )
               )
@@ -647,3 +647,254 @@ function Configuracion({sprintId}){
 
 // Render
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+
+(() => {
+  const { createElement: h, useEffect, useRef, useState } = React;
+  const root = document.getElementById('root');
+
+  // Register Chart.js components
+  const Chart = window.Chart;
+  if (!Chart) {
+    root.innerHTML = '<div class="p-6 text-red-600">Error: Chart.js no está cargado.</div>';
+    return;
+  }
+  Chart.register(...(Chart?.registerables || []));
+
+  function useChart(canvasRef, configFactory, deps = []) {
+    const chartRef = useRef(null);
+    useEffect(() => {
+      const ctx = canvasRef.current.getContext('2d');
+      // create chart
+      const cfg = configFactory();
+      chartRef.current = new Chart(ctx, cfg);
+
+      // redraw on resize to recreate gradients
+      const ro = new ResizeObserver(() => chartRef.current && chartRef.current.resize());
+      ro.observe(canvasRef.current);
+
+      return () => {
+        ro.disconnect();
+        chartRef.current.destroy();
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, deps);
+    return chartRef;
+  }
+
+  function makeGradient(ctx, area, colorStart, colorEnd) {
+    const grad = ctx.createLinearGradient(0, area.top, 0, area.bottom || 300);
+    grad.addColorStop(0, colorStart);
+    grad.addColorStop(1, colorEnd);
+    return grad;
+  }
+
+  function formatNumber(v) {
+    if (v >= 1000) return (v / 1000).toFixed(1) + 'k';
+    return v;
+  }
+
+  function BurndownChart({ labels, estimated, actual }) {
+    const canvasRef = useRef(null);
+
+    const configFactory = () => {
+      const ctx = canvasRef.current.getContext('2d');
+      // create temporary chart to get chartArea later? We'll use gradients in afterLayout plugin
+      return {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Estimado',
+              data: estimated,
+              borderWidth: 3,
+              borderColor: '#06b6d4',
+              pointBackgroundColor: '#ffffff',
+              pointBorderColor: '#06b6d4',
+              pointRadius: 5,
+              tension: 0.36,
+              fill: true,
+              backgroundColor: (ctx) => {
+                const chart = ctx.chart;
+                const area = chart.chartArea || { top: 0, bottom: 200 };
+                return makeGradient(chart.ctx, area, 'rgba(6,182,212,0.18)', 'rgba(6,182,212,0.03)');
+              },
+              clip: 20,
+            },
+            {
+              label: 'Real',
+              data: actual,
+              borderWidth: 3,
+              borderColor: '#f97316',
+              pointBackgroundColor: '#ffffff',
+              pointBorderColor: '#f97316',
+              pointRadius: 5,
+              tension: 0.36,
+              fill: true,
+              backgroundColor: (ctx) => {
+                const chart = ctx.chart;
+                const area = chart.chartArea || { top: 0, bottom: 200 };
+                return makeGradient(chart.ctx, area, 'rgba(249,115,22,0.16)', 'rgba(249,115,22,0.03)');
+              },
+              borderDash: [6, 4],
+              clip: 20,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, padding: 12 } },
+            tooltip: {
+              backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--tw-bg-opacity') ? undefined : undefined,
+              padding: 10,
+              titleFont: { weight: '600' },
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue}`,
+              },
+            },
+            title: {
+              display: true,
+              text: 'Burndown — Estimado vs Real',
+              padding: { top: 6, bottom: 12 },
+              font: { size: 16, weight: '600' },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: getComputedStyle(document.documentElement).color },
+              grid: { display: false },
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (v) => formatNumber(v),
+                color: getComputedStyle(document.documentElement).color,
+              },
+              grid: {
+                color: (ctx) => {
+                  const c = getComputedStyle(document.documentElement).color;
+                  return Chart.helpers.color(c).alpha(0.08).rgbString();
+                },
+              },
+            },
+          },
+        },
+        plugins: [{
+          id: 'resize-gradient-fix',
+          afterLayout: (chart) => {
+            // force update of backgroundColor if it's a function (to recreate gradient with proper area)
+            chart.data.datasets.forEach((ds, i) => {
+              if (typeof ds.backgroundColor === 'function') ds.backgroundColor = ds.backgroundColor({ chart, index: i });
+            });
+          }
+        }]
+      };
+    };
+
+    useChart(canvasRef, configFactory, [labels.join(','), estimated.join(','), actual.join(',')]);
+
+    return h('div', { className: 'bg-white dark:bg-zinc-900 shadow-md rounded-lg p-4 h-[360px]' },
+      h('canvas', { ref: canvasRef, style: { width: '100%', height: '100%' } })
+    );
+  }
+
+  function HoursPerDayChart({ labels, hours }) {
+    const canvasRef = useRef(null);
+
+    const configFactory = () => ({
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Horas terminadas',
+          data: hours,
+          backgroundColor: (ctx) => {
+            const chart = ctx.chart;
+            const area = chart.chartArea || { top: 0, bottom: 200 };
+            return makeGradient(chart.ctx, area, 'rgba(99,102,241,0.22)', 'rgba(99,102,241,0.02)');
+          },
+          borderRadius: 6,
+          barThickness: 'flex',
+          maxBarThickness: 28,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.formattedValue} hrs`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: { color: getComputedStyle(document.documentElement).color },
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (v) => formatNumber(v),
+              color: getComputedStyle(document.documentElement).color,
+            },
+            grid: {
+              color: (ctx) => {
+                const c = getComputedStyle(document.documentElement).color;
+                return Chart.helpers.color(c).alpha(0.08).rgbString();
+              },
+            },
+          },
+        },
+      };
+    };
+
+    useChart(canvasRef, configFactory, [labels.join(','), hours.join(',')]);
+
+    return h('div', { className: 'bg-white dark:bg-zinc-900 shadow-md rounded-lg p-4 h-[360px]' },
+      h('canvas', { ref: canvasRef, style: { width: '100%', height: '100%' } })
+    );
+  }
+
+  // Render charts on Dashboard
+  const dashboardRoot = document.getElementById('root');
+  if (dashboardRoot) {
+    const observer = new MutationObserver(() => {
+      const chartsContainer = dashboardRoot.querySelector('.mx-auto.max-w-7xl.px-4.sm\\:px-6.lg\\:px-8.py-6');
+      if (!chartsContainer) return;
+
+      // Unobserve after first execution
+      observer.disconnect();
+
+      // Find and render BurndownChart
+      const burndownChartEl = chartsContainer.querySelector('#chart-line');
+      if (burndownChartEl) {
+        const labels = Array.from(burndownChartEl.querySelectorAll('tbody tr')).map(row => row.children[0].innerText);
+        const estimated = Array.from(burndownChartEl.querySelectorAll('tbody tr')).map(row => parseFloat(row.children[2].innerText.replace(',', '.')));
+        const actual = Array.from(burndownChartEl.querySelectorAll('tbody tr')).map(row => parseFloat(row.children[3].innerText.replace(',', '.')));
+
+        ReactDOM.createRoot(burndownChartEl).render(
+          React.createElement(BurndownChart, { labels, estimated, actual })
+        );
+      }
+
+      // Find and render HoursPerDayChart
+      const hoursPerDayChartEl = chartsContainer.querySelector('#chart-bars');
+      if (hoursPerDayChartEl) {
+        const labels = Array.from(hoursPerDayChartEl.querySelectorAll('tbody tr')).map(row => row.children[0].innerText);
+        const hours = Array.from(hoursPerDayChartEl.querySelectorAll('tbody tr')).map(row => parseFloat(row.children[1].innerText.replace(',', '.')));
+
+        ReactDOM.createRoot(hoursPerDayChartEl).render(
+          React.createElement(HoursPerDayChart, { labels, hours })
+        );
+      }
+    });
+
+    observer.observe(dashboardRoot, { childList: true, subtree: true });
+  }
+})();
