@@ -1,6 +1,9 @@
--- SUPABASE – FULL v2 (ES) – Ajustes
+-- SUPABASE – FULL v4 (ES) – Real null en futuros, calcular hoy y recálculo
 create extension if not exists pgcrypto;
 
+-- ===================
+-- Tablas
+-- ===================
 create table if not exists sprints (
   id            uuid primary key default gen_random_uuid(),
   nombre        text not null,
@@ -44,12 +47,21 @@ create table if not exists burndown_real (
   sprint_id uuid not null references sprints(id) on delete cascade,
   dia       int  not null,
   fecha     date not null,
-  horas     int  not null check (horas >= 0),
+  horas     int  null, -- ahora permite NULL para no pintar futuros
   unique (sprint_id, fecha),
   unique (sprint_id, dia)
 );
 
--- Vista subtareas_v2 con nombre de historia y proyecto
+-- Ajuste por si viene de versiones anteriores
+do $$ begin
+  if exists (select 1 from information_schema.columns where table_name='burndown_real' and column_name='horas' and is_nullable='NO') then
+    alter table burndown_real alter column horas drop not null;
+  end if;
+end $$;
+
+-- ===================
+-- Vistas
+-- ===================
 create or replace view subtareas_v2 as
 select
   s.*,
@@ -64,21 +76,19 @@ left join historias h
   on h.tarea_id = s.historia_tarea_id
 where s.oculto = false;
 
--- KPI por sprint
 create or replace view sprint_kpis as
 select
   sp.id as sprint_id,
   coalesce(sum(st.duracion_h),0) as total_horas,
-  coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%') or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0) as horas_terminadas,
-  coalesce(sum(st.duracion_h),0) - coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%') or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0) as horas_pendientes,
+  coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%' ) or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0) as horas_terminadas,
+  coalesce(sum(st.duracion_h),0) - coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%' ) or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0) as horas_pendientes,
   case when coalesce(sum(st.duracion_h),0)=0 then 0
-       else round((coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%') or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0)::numeric * 100)
+       else round((coalesce(sum(case when (st.terminado_manual or (st.estado_personalizado ilike '%completado%' ) or (st.fecha_terminacion is not null)) then st.duracion_h else 0 end),0)::numeric * 100)
            / nullif(coalesce(sum(st.duracion_h),0),0), 2) end as porcentaje_avance
 from sprints sp
 left join subtareas st on st.sprint_id = sp.id and st.oculto = false
 group by sp.id;
 
--- Días hábiles
 create or replace view sprint_dias_habiles as
 select sp.id as sprint_id,
        d::date as fecha,
@@ -91,7 +101,6 @@ join lateral (
     and gs::date not in (select fecha from festivos_mx)
 ) dd on true;
 
--- Burndown estimado (por dia)
 create or replace view sprint_burndown_estimado as
 with base as (
   select k.sprint_id, k.total_horas, count(*) as dias
@@ -105,7 +114,6 @@ from sprint_dias_habiles dh
 join base b on b.sprint_id = dh.sprint_id
 order by dh.sprint_id, dh.dia;
 
--- Horas terminadas por día
 create or replace view horas_terminadas_por_dia as
 select
   sp.id as sprint_id,
@@ -117,7 +125,29 @@ left join subtareas st on st.sprint_id = sp.id and st.oculto = false
 group by sp.id, coalesce(st.fecha_terminacion::date, st.fecha_creacion::date)
 order by fecha;
 
+create or replace view avance_por_persona as
+select 
+  sp.id as sprint_id,
+  st.propietario,
+  sum(st.duracion_h) as horas_totales,
+  sum(case 
+        when (st.terminado_manual 
+              or st.estado_personalizado ilike '%completado%' 
+              or st.fecha_terminacion is not null)
+        then st.duracion_h else 0 end) as horas_terminadas,
+  sum(st.duracion_h) 
+    - sum(case 
+            when (st.terminado_manual 
+                  or st.estado_personalizado ilike '%completado%' 
+                  or st.fecha_terminacion is not null)
+            then st.duracion_h else 0 end) as horas_pendientes
+from sprints sp
+left join subtareas st on st.sprint_id = sp.id and st.oculto = false
+group by sp.id, st.propietario;
+
+-- ===================
 -- Funciones
+-- ===================
 create or replace function upsert_historia(p_sprint uuid, p_tarea_id text, p_proyecto text, p_nombre text) returns void as $$
 begin
   insert into historias (sprint_id, tarea_id, proyecto, nombre)
@@ -166,13 +196,79 @@ begin
   on conflict (sprint_id, dia) do update set fecha = excluded.fecha, horas = excluded.horas;
 end; $$ language plpgsql;
 
+-- Variante que acepta NULL para horas (para borrar/limpiar)
+create or replace function set_burndown_real_nullable(p_sprint uuid, p_fecha date, p_dia int, p_horas int) returns void as $$
+begin
+  insert into burndown_real (sprint_id, fecha, dia, horas)
+  values (p_sprint, p_fecha, p_dia, p_horas)
+  on conflict (sprint_id, dia) do update set fecha = excluded.fecha, horas = excluded.horas;
+end; $$ language plpgsql;
+
+-- Inicializa burndown_real: día 0 = estimado día 0; resto = NULL (no pintar)
+create or replace function init_burndown_real(p_sprint uuid) returns void as $$
+declare
+  rec record;
+begin
+  if exists (select 1 from burndown_real where sprint_id = p_sprint) then
+    return;
+  end if;
+
+  for rec in
+    select dia, fecha, horas_estimadas
+    from sprint_burndown_estimado
+    where sprint_id = p_sprint
+    order by dia
+  loop
+    insert into burndown_real (sprint_id, dia, fecha, horas)
+    values (p_sprint, rec.dia, rec.fecha, case when rec.dia=0 then rec.horas_estimadas else null end);
+  end loop;
+end; $$ language plpgsql;
+
+-- Avance por persona con capacidad y diferencia
+create or replace function avance_por_persona_extendido(p_sprint uuid)
+returns table(
+  propietario text,
+  horas_totales int,
+  horas_terminadas int,
+  horas_pendientes int,
+  dias_restantes int,
+  capacidad int,
+  diferencia int
+) as $$
+declare
+  ff date; hoy date := current_date;
+  dias int; horas_dia int := 7;
+begin
+  select fecha_fin into ff from sprints where id = p_sprint;
+  select greatest(0, count(*))
+  into dias
+  from generate_series(hoy, ff, interval '1 day') gs
+  where extract(isodow from gs) < 6
+    and gs::date not in (select fecha from festivos_mx);
+
+  return query
+  select 
+    a.propietario,
+    a.horas_totales,
+    a.horas_terminadas,
+    a.horas_pendientes,
+    dias as dias_restantes,
+    dias * horas_dia as capacidad,
+    (a.horas_pendientes - dias * horas_dia) as diferencia
+  from avance_por_persona a
+  where a.sprint_id = p_sprint;
+end; $$ language plpgsql;
+
+-- ===================
 -- RLS abierta para pruebas
+-- ===================
 alter table sprints enable row level security;
 alter table historias enable row level security;
 alter table subtareas enable row level security;
 alter table festivos_mx enable row level security;
 alter table burndown_real enable row level security;
 
+-- reset políticas
 drop policy if exists sprints_select_all on sprints;
 drop policy if exists sprints_insert_all on sprints;
 drop policy if exists sprints_update_all on sprints;
@@ -218,7 +314,7 @@ create policy festivos_mx_insert_all on festivos_mx for insert with check (true)
 create policy festivos_mx_update_all on festivos_mx for update using (true);
 create policy festivos_mx_delete_all on festivos_mx for delete using (true);
 
--- Festivos ejemplo
+-- Festivos (ejemplo)
 insert into festivos_mx (fecha, descripcion) values
   ('2025-01-01','Año Nuevo'),
   ('2025-02-03','Constitución (trasladado)'),

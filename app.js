@@ -1,4 +1,11 @@
-/* GM Sprints – FULL v2 (ES) – Fixes solicitados */
+/* GM Sprints – FULL v4 (ES)
+   Cambios:
+   - Real: día 0 = estimado; días futuros = null (no se grafica)
+   - Botón "Recalcular estimado": refresca datos del estimado
+   - Botón "Calcular hoy": setea Real del día hábil actual con KPI horas_pendientes
+   - Tabla Hrs Burndown: Real editable; null se muestra vacío
+   - Mantiene: Avance por persona debajo del burndown, parser Zoho, filtros, RLS abierta
+*/
 const { useState, useEffect, useMemo } = React;
 const NAV = [
   { key: 'dashboard', icon: 'fa-solid fa-gauge', label: 'Dashboard' },
@@ -8,11 +15,12 @@ const NAV = [
   { key: 'config',    icon: 'fa-solid fa-gear', label: 'Configuración' },
 ];
 
-const SUPABASE_URL = "https://xsmtmnypjbrgnuqtnsda.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzbXRtbnlwamJyZ251cXRuc2RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNzUzNTYsImV4cCI6MjA3Njg1MTM1Nn0.S9lgld-poDLv9QMevxQHXVFAM-QUG4JNOnR6Ao_oUgw";
+// ---------- Supabase ----------
+const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Helpers
+// ---------- Helpers ----------
 function cls(...xs){return xs.filter(Boolean).join(' ');}
 function useDarkMode(){
   const [isDark,setIsDark]=useState(false);
@@ -42,6 +50,19 @@ function parseZohoDateToISO(dateStr){
   return `${yyyy}-${mm}-${dd}`;
 }
 
+async function getDiaActualDelSprint(sprintId){
+  // Busca el registro de sprint_dias_habiles para la fecha actual
+  const hoy = new Date().toISOString().slice(0,10); // yyyy-mm-dd
+  const { data, error } = await supabase
+    .from('sprint_dias_habiles')
+    .select('dia,fecha')
+    .eq('sprint_id', sprintId)
+    .eq('fecha', hoy)
+    .maybeSingle();
+  if(error) return { dia: null, fecha: null };
+  return { dia: data?.dia ?? null, fecha: data?.fecha ?? null };
+}
+
 function App(){
   const { isDark, setIsDark } = useDarkMode();
   const [tab, setTab] = useState('sprint');
@@ -52,6 +73,7 @@ function App(){
   return (
     React.createElement('div', {className:'min-h-screen'},
       React.createElement('div', {className:'flex'},
+        // Sidebar
         React.createElement('aside', {className:'hidden md:flex w-64 min-h-screen flex-col gap-2 border-r border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 backdrop-blur'},
           React.createElement('div', {className:'px-5 py-4 text-lg font-semibold tracking-tight'}, 'GM Sprints'),
           React.createElement('nav', {className:'flex-1 px-3'},
@@ -70,6 +92,7 @@ function App(){
             )
           )
         ),
+        // Main
         React.createElement('main',{className:'flex-1'},
           React.createElement('header',{className:'sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 backdrop-blur'},
             React.createElement('div',{className:'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between'},
@@ -97,7 +120,7 @@ function App(){
   );
 }
 
-// Sprint
+// ---------- Sprint ----------
 function SprintAdmin({sprintId,setSprintId,setSprintNombre}){
   const [nombre,setNombre]=useState('');
   const [fi,setFi]=useState('');
@@ -145,7 +168,7 @@ function SprintAdmin({sprintId,setSprintId,setSprintNombre}){
       React.createElement('section',{className:'mt-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6'},
         React.createElement('h4',{className:'font-semibold mb-3'},'Seleccionar sprint activo'),
         React.createElement('div',{className:'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3'},
-          sprints.map(sp =>
+          (sprints||[]).map(sp =>
             React.createElement('button',{key:sp.id,onClick:()=>{setSprintId(sp.id); setSprintNombre(sp.nombre); localStorage.setItem('sprint_id',sp.id); localStorage.setItem('sprint_nombre',sp.nombre); toast('Sprint activo cambiado');}, className: 'text-left p-3 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'},
               React.createElement('div',{className:'font-medium'}, sp.nombre),
               React.createElement('div',{className:'text-xs text-zinc-500'}, `${sp.fecha_inicio} → ${sp.fecha_fin}`)
@@ -157,7 +180,7 @@ function SprintAdmin({sprintId,setSprintId,setSprintNombre}){
   );
 }
 
-// Cargas Diarias
+// ---------- Cargas Diarias ----------
 function CargasDiarias({sprintId}){
   const [subtareasRows,setSubtareasRows]=useState([]);
   const [historiasRows,setHistoriasRows]=useState([]);
@@ -227,12 +250,13 @@ function CargasDiarias({sprintId}){
   );
 }
 
-// Dashboard
+// ---------- Dashboard ----------
 function Dashboard({sprintId}){
   const [kpi,setKpi]=useState(null);
   const [estimado,setEstimado]=useState([]);
   const [real,setReal]=useState([]);
   const [terminadasByDia,setTerminadasByDia]=useState([]);
+  const [avance,setAvance]=useState([]);
 
   async function cargarTodo(){
     if(!sprintId){ return; }
@@ -242,11 +266,20 @@ function Dashboard({sprintId}){
     let { data:est } = await supabase.from('sprint_burndown_estimado').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true});
     setEstimado(est||[]);
 
+    // Asegura burndown_real inicial si no hay
     let { data:reales } = await supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true});
+    if(!reales || reales.length===0){
+      await supabase.rpc('init_burndown_real',{ p_sprint: sprintId });
+      let r2 = await supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true});
+      reales = r2.data||[];
+    }
     setReal(reales||[]);
 
     let { data:bars } = await supabase.from('horas_terminadas_por_dia').select('*').eq('sprint_id',sprintId).order('fecha',{ascending:true});
     setTerminadasByDia(bars||[]);
+
+    let { data:av } = await supabase.rpc('avance_por_persona_extendido', { p_sprint: sprintId });
+    setAvance(av || []);
   }
   useEffect(()=>{ cargarTodo(); },[sprintId]);
 
@@ -254,14 +287,25 @@ function Dashboard({sprintId}){
     const ctxL = document.getElementById('chart-line');
     const ctxB = document.getElementById('chart-bars');
     if(!ctxL || !ctxB) return;
+
     const labels = (estimado||[]).map(x=>`Día ${x.dia}`);
     const dataEst = (estimado||[]).map(x=>x.horas_estimadas);
+
+    // Real: null para días futuros (no dibujar)
+    const hoyISO = new Date().toISOString().slice(0,10);
+    // necesitamos mapa fecha->dia o comparamos por index; usamos 'estimado' como base y nulificamos > hoy
     const mapRealByDia = new Map((real||[]).map(r=>[r.dia, r.horas]));
-    const dataReal = (estimado||[]).map(x=> mapRealByDia.get(x.dia) ?? null);
+    const dataReal = (estimado||[]).map(x=> {
+      const h = mapRealByDia.get(x.dia);
+      // si no hay horas o el valor es null => null
+      return (h === null || h === undefined) ? null : h;
+    });
+
     const line = new Chart(ctxL,{type:'line',data:{labels,datasets:[
-      {label:'Estimado', data:dataEst, borderColor:'#16a34a', tension:0},
-      {label:'Real', data:dataReal, borderColor:'#2563eb', tension:0}
+      {label:'Estimado', data:dataEst, borderColor:'#16a34a', spanGaps:true, tension:0},
+      {label:'Real', data:dataReal, borderColor:'#2563eb', spanGaps:true, tension:0}
     ]}, options:{responsive:true}});
+
     const bar = new Chart(ctxB,{type:'bar',data:{
       labels:(terminadasByDia||[]).map(x=>x.fecha),
       datasets:[{label:'Horas terminadas', data:(terminadasByDia||[]).map(x=>x.horas_terminadas), backgroundColor:'#0ea5e9'}]
@@ -280,7 +324,29 @@ function Dashboard({sprintId}){
       React.createElement('section',{className:'mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4'},
         React.createElement('div',{className:'lg:col-span-2 rounded-2xl border p-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'},
           React.createElement('div',{className:'flex items-center justify-between mb-3'},
-            React.createElement('h3',{className:'font-semibold'},'Burndown – Estimado vs Real')
+            React.createElement('h3',{className:'font-semibold'},'Burndown – Estimado vs Real'),
+            React.createElement('div',{className:'flex items-center gap-2'},
+              React.createElement('button',{onClick: cargarTodo, className:'px-3 py-1.5 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'}, 'Recalcular estimado'),
+              React.createElement('button',{
+                onClick: async ()=>{
+                  if(!sprintId) return;
+                  // horas pendientes actuales
+                  const { data:kpis } = await supabase.from('sprint_kpis').select('*').eq('sprint_id',sprintId).maybeSingle();
+                  const horasPend = kpis?.horas_pendientes ?? null;
+                  if(horasPend===null){ toast('No se pudo obtener KPI de horas pendientes'); return; }
+                  // dia actual hábil
+                  const { dia, fecha } = await getDiaActualDelSprint(sprintId);
+                  if(dia===null){ toast('Hoy no es un día hábil del sprint (o está fuera del rango/festivo)'); return; }
+                  const { error } = await supabase.rpc('set_burndown_real', { p_sprint: sprintId, p_fecha: fecha, p_dia: dia, p_horas: horasPend });
+                  if(error){ toast('Error al guardar real de hoy: '+error.message); return; }
+                  toast(`Real del día ${dia} actualizado a ${horasPend} h`);
+                  // refresca series
+                  const r2 = await supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true});
+                  setReal(r2.data||[]);
+                },
+                className:'px-3 py-1.5 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              }, 'Calcular hoy (Real = horas pendientes)')
+            )
           ),
           React.createElement('div',{className:'h-64 w-full rounded-xl border border-dashed flex items-center justify-center text-zinc-400 dark:border-zinc-700'},
             React.createElement('canvas',{id:'chart-line',className:'w-full h-full'})
@@ -292,6 +358,38 @@ function Dashboard({sprintId}){
           ),
           React.createElement('div',{className:'h-64 w-full rounded-xl border border-dashed flex items-center justify-center text-zinc-400 dark:border-zinc-700'},
             React.createElement('canvas',{id:'chart-bars',className:'w-full h-full'})
+          )
+        )
+      ),
+      // Avance por persona
+      React.createElement('section',{className:'mt-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4'},
+        React.createElement('h3',{className:'font-semibold mb-3'},'Avance por persona'),
+        React.createElement('div',{className:'overflow-x-auto'},
+          React.createElement('table',{className:'w-full text-sm'},
+            React.createElement('thead',null,
+              React.createElement('tr',{className:'text-left text-zinc-500'},
+                React.createElement('th',{className:'py-2 pr-4'},'Propietario'),
+                React.createElement('th',{className:'py-2 pr-4'},'Totales'),
+                React.createElement('th',{className:'py-2 pr-4'},'Terminadas'),
+                React.createElement('th',{className:'py-2 pr-4'},'Pendientes'),
+                React.createElement('th',{className:'py-2 pr-4'},'Capacidad'),
+                React.createElement('th',{className:'py-2 pr-4'},'Diferencia')
+              )
+            ),
+            React.createElement('tbody',null,
+              (avance||[]).map((r,i)=>
+                React.createElement('tr',{key:i,className:'border-t border-zinc-100 dark:border-zinc-800'},
+                  React.createElement('td',{className:'py-2 pr-4'}, r.propietario || '—'),
+                  React.createElement('td',{className:'py-2 pr-4'}, r.horas_totales || 0),
+                  React.createElement('td',{className:'py-2 pr-4'}, r.horas_terminadas || 0),
+                  React.createElement('td',{className:'py-2 pr-4'}, r.horas_pendientes || 0),
+                  React.createElement('td',{className:'py-2 pr-4'}, r.capacidad || 0),
+                  React.createElement('td',{className: cls('py-2 pr-4 font-medium', (r.diferencia||0)<=0 ? 'text-green-600 dark:text-green-400' : 'text-red-500')},
+                    (r.diferencia||0)<=0 ? '✅ A tiempo' : `⚠️ +${r.diferencia} hrs`
+                  )
+                )
+              )
+            )
           )
         )
       )
@@ -311,7 +409,7 @@ function KpiCard({title,value,icon}){
   );
 }
 
-// Hrs Burndown
+// ---------- Hrs Burndown (editable Real) ----------
 function HrsBurndown({sprintId}){
   const [rows,setRows]=useState([]);
   const [totalHoras,setTotalHoras]=useState(0);
@@ -319,38 +417,64 @@ function HrsBurndown({sprintId}){
 
   async function cargarBase(){
     if(!sprintId){ return; }
-    const [{data:sp},{data:est},{data:reales},{data:kpis}] = await Promise.all([
+    const [{data:sp},{data:est}]= await Promise.all([
       supabase.from('sprints').select('fecha_inicio,fecha_fin').eq('id',sprintId).single(),
-      supabase.from('sprint_burndown_estimado').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true}),
-      supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true}),
-      supabase.from('sprint_kpis').select('*').eq('sprint_id',sprintId).maybeSingle()
+      supabase.from('sprint_burndown_estimado').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true})
     ]);
-    setFi(sp?.fecha_inicio||''); setFf(sp?.fecha_fin||''); setTotalHoras(kpis?.total_horas||0);
+    setFi(sp?.fecha_inicio||''); setFf(sp?.fecha_fin||'');
+
+    // asegúrate de tener 'real' inicial
+    let { data:reales } = await supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true});
+    if(!reales || reales.length===0){
+      await supabase.rpc('init_burndown_real',{ p_sprint: sprintId });
+      let r2 = await supabase.from('burndown_real').select('*').eq('sprint_id',sprintId).order('dia',{ascending:true});
+      reales = r2.data||[];
+    }
+
     const realByDia = new Map((reales||[]).map(r=>[r.dia, r.horas]));
     const tabla = (est||[]).map(e=> ({
       dia: e.dia, fecha: e.fecha, fecha_dmy: fmtDMY(e.fecha),
-      estimado: e.horas_estimadas, real: (realByDia.get(e.dia) ?? e.horas_estimadas)
+      estimado: e.horas_estimadas, real: (realByDia.get(e.dia) ?? null)
     }));
     setRows(tabla);
+    const total = (est||[])[0]?.horas_estimadas || 0;
+    setTotalHoras(total);
   }
 
   async function onEdit(i, val){
-    const n = Number(val); if(Number.isNaN(n) || n<0) return;
     const row = rows[i]; if(!row) return;
+    const n = (val === '' ? null : Number(val));
+    if(n !== null && (Number.isNaN(n) || n < 0)) return;
     setRows(prev=>{ const c=[...prev]; c[i]={...row, real:n}; return c; });
-    const { error } = await supabase.rpc('set_burndown_real', {
+    // si es null, guardamos 0? No: ahora permitimos NULL en la tabla.
+    const { error } = await supabase.rpc('set_burndown_real_nullable', {
       p_sprint: sprintId, p_fecha: row.fecha, p_dia: row.dia, p_horas: n
     });
     if(error) toast('Error guardando Real: '+error.message);
   }
 
-  useEffect(()=>{ cargarBase(); },[sprintId]);
-
   return (
     React.createElement('section',{className:'rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6'},
       React.createElement('div',{className:'flex items-center justify-between mb-3'},
         React.createElement('h3',{className:'font-semibold'},'Hrs Burndown'),
-        React.createElement('div',{className:'text-xs text-zinc-500'},'Edita la columna Real; se guarda automáticamente.')
+        React.createElement('div',{className:'flex items-center gap-2'},
+          React.createElement('button',{onClick:cargarBase,className:'px-3 py-1.5 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'}, 'Recalcular estimado'),
+          React.createElement('button',{
+            onClick: async ()=>{
+              if(!sprintId) return;
+              const { data:kpis } = await supabase.from('sprint_kpis').select('*').eq('sprint_id',sprintId).maybeSingle();
+              const horasPend = kpis?.horas_pendientes ?? null;
+              if(horasPend===null){ toast('No se pudo obtener KPI de horas pendientes'); return; }
+              const { dia, fecha } = await getDiaActualDelSprint(sprintId);
+              if(dia===null){ toast('Hoy no es un día hábil del sprint (o está fuera del rango/festivo)'); return; }
+              const { error } = await supabase.rpc('set_burndown_real', { p_sprint: sprintId, p_fecha: fecha, p_dia: dia, p_horas: horasPend });
+              if(error){ toast('Error al guardar real de hoy: '+error.message); return; }
+              toast(`Real del día ${dia} actualizado a ${horasPend} h`);
+              cargarBase();
+            },
+            className:'px-3 py-1.5 rounded-xl border hover:bg-zinc-100 dark:hover:bg-zinc-800'
+          }, 'Calcular hoy (Real = horas pendientes)')
+        )
       ),
       React.createElement('div',{className:'grid grid-cols-1 md:grid-cols-3 gap-3 mb-4'},
         React.createElement('div',null,
@@ -362,7 +486,7 @@ function HrsBurndown({sprintId}){
           React.createElement('input',{type:'date',value:ff,readOnly:true,className:'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/60 dark:bg-zinc-800/40'})
         ),
         React.createElement('div',null,
-          React.createElement('label',{className:'text-xs text-zinc-500'},'Total de horas (solo lectura)'),
+          React.createElement('label',{className:'text-xs text-zinc-500'},'Total de horas estimadas (día 0)'),
           React.createElement('input',{value:totalHoras,readOnly:true,className:'mt-1 w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/60 dark:bg-zinc-800/40'})
         )
       ),
@@ -383,7 +507,12 @@ function HrsBurndown({sprintId}){
                 React.createElement('td',{className:'py-2 pr-4'}, r.fecha_dmy),
                 React.createElement('td',{className:'py-2 pr-4'}, r.estimado),
                 React.createElement('td',{className:'py-2 pr-4'},
-                  React.createElement('input',{type:'number',min:0,step:1,value:r.real,onChange:e=>onEdit(i,e.target.value),className:'w-24 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent'})
+                  React.createElement('input',{
+                    type:'number', min:0, step:1,
+                    value:(r.real===null || r.real===undefined) ? '' : r.real,
+                    onChange:e=>onEdit(i,e.target.value),
+                    className:'w-24 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent'
+                  })
                 )
               )
             )
@@ -394,12 +523,12 @@ function HrsBurndown({sprintId}){
   );
 }
 
-// Configuración con filtros
+// ---------- Configuración con filtros ----------
 function Configuracion({sprintId}){
   const [rows,setRows]=useState([]);
   const [q,setQ]=useState('');
   const [propSel,setPropSel]=useState('');
-  const [estadoSel,setEstadoSel]=useState('');
+  const [estadoSel,setEstadoSel]=useState(''); // terminado/pendiente
 
   async function cargar(){
     if(!sprintId){ setRows([]); return; }
